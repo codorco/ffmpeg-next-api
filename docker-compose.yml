@@ -1,0 +1,15 @@
+services:
+  ffmpeg-api:
+    build: .
+    container_name: ffmpeg-api
+    restart: unless-stopped
+    ports:
+      - "9025:3000"
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+    networks:
+      - automacao_network
+
+networks:
+  automacao_network:
+    external: true

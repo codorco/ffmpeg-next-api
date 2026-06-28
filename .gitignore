@@ -16,6 +16,10 @@ input
 node-ffmpeg.zip
 
 /node_modules
+.env
+.env.*
+.env.local
+.env.*.local
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml

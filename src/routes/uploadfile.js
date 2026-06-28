@@ -10,6 +10,12 @@ const logger = require('../utils/logger.js')
 //file is saved to res.locals.savedFile and can be used in subsequent routes.
 router.use(function (req, res,next) {
     
+    // Routes that manage their own multi-file upload bypass this middleware
+    const multiFileRoutes = ['/image/to/images-to-video', '/subtitle/ass'];
+    if (req.method === 'POST' && multiFileRoutes.indexOf(req.path) !== -1) {
+        return next();
+    }
+
     if(req.method == "POST")
     {
         logger.debug(`${__filename} path: ${req.path}`);

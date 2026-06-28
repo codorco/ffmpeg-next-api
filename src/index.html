@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ffmpeg-api</title>
+<meta name="description" content="Serviço HTTP para converter, extrair e processar arquivos de mídia usando FFmpeg.">
+<style>
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1c2128;
+  --border:    #30363d;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --accent:    #58a6ff;
+  --green:     #3fb950;
+  --radius:    8px;
+  --radius-sm: 4px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.65;padding:0 16px 64px}
+.wrap{max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+strong{color:var(--text)}
+
+/* ── Header ── */
+header{padding:36px 0 28px;border-bottom:1px solid var(--border);margin-bottom:28px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px}
+.tagline{color:var(--muted);font-size:15px;margin-bottom:14px}
+.links{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px}
+.links a{color:var(--muted)}
+.links a:hover{color:var(--accent)}
+.dot{color:var(--border)}
+
+/* ── Summary table ── */
+.summary{margin-bottom:32px}
+.summary h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px}
+.summary-table{width:100%;border-collapse:collapse;font-size:13px}
+.summary-table th{text-align:left;padding:7px 12px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.summary-table td{padding:7px 12px;border:1px solid var(--border);color:var(--muted);vertical-align:middle}
+.summary-table tr:hover td{background:rgba(255,255,255,0.025)}
+.summary-table td code{color:var(--text)}
+
+/* ── Method badges ── */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:700;font-family:monospace;letter-spacing:.04em;white-space:nowrap}
+.get {background:#1c4532;color:#3fb950;border:1px solid #238636}
+.post{background:#0c2a6e;color:#79b8ff;border:1px solid #1f5ec4}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.toolbar h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.btn-group{display:flex;gap:6px}
+.btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Accordion ── */
+details{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;background:var(--surface);overflow:hidden}
+details[open]{border-color:#58a6ff55}
+details>summary{display:flex;align-items:center;gap:8px;padding:13px 16px;cursor:pointer;list-style:none;user-select:none;gap:10px}
+details>summary::-webkit-details-marker{display:none}
+.s-path{font-family:'SF Mono','Fira Code',monospace;font-size:14px;font-weight:600;color:var(--text)}
+.s-desc{font-size:13px;color:var(--muted);flex:1}
+.arrow{color:var(--muted);font-size:11px;flex-shrink:0;transition:transform .18s}
+details[open] .arrow{transform:rotate(90deg)}
+
+/* ── Detail body ── */
+.body{padding:4px 20px 20px;border-top:1px solid var(--border)}
+.body p{color:var(--muted);font-size:14px;margin:12px 0 6px}
+.body p:first-child{margin-top:14px}
+
+/* ── Section labels ── */
+.label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+
+/* ── Code blocks ── */
+.code-wrap{position:relative;margin:10px 0}
+.copy-btn{position:absolute;top:8px;right:8px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;opacity:0;transition:opacity .15s}
+.code-wrap:hover .copy-btn{opacity:1}
+.copy-btn:hover{color:var(--accent);border-color:var(--accent)}
+.copy-btn.copied{color:var(--green);border-color:var(--green)}
+pre{background:#0d1117;border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;overflow-x:auto;font-size:13px;line-height:1.55}
+code{font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:13px;color:var(--text)}
+p code,li code,td code{background:rgba(110,118,129,.1);border:1px solid rgba(110,118,129,.2);border-radius:3px;padding:1px 5px;font-size:12px;color:var(--text)}
+
+/* ── Tables ── */
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+th{text-align:left;padding:7px 12px;background:rgba(110,118,129,.08);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+td{padding:7px 12px;border:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ── Lists ── */
+ul,ol{padding-left:18px;margin:8px 0}
+li{color:var(--muted);font-size:14px;margin-bottom:3px}
+
+/* ── Note ── */
+.note{border-left:3px solid var(--accent);padding:8px 12px;background:rgba(88,166,255,.06);border-radius:0 4px 4px 0;font-size:13px;color:var(--muted);margin:10px 0}
+.note code{color:var(--text)}
+
+/* ── Sub-sections (subtitle) ── */
+.sub{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin:10px 0}
+.sub h3{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px}
+
+/* ── Footer sections ── */
+.footer-section{margin-top:10px}
+
+/* ── Ascii alignment grid ── */
+.align-grid{display:inline-grid;grid-template-columns:repeat(3,48px);gap:4px;margin:8px 0}
+.align-grid .cell{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:5px 0;text-align:center;font-family:monospace;font-size:13px;color:var(--muted)}
+.align-grid .cell.named{color:var(--accent);border-color:#58a6ff55;background:rgba(88,166,255,.06)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>ffmpeg-api</h1>
+  <p class="tagline">Serviço HTTP para converter, extrair e processar arquivos de áudio, vídeo e imagem usando <strong>FFmpeg</strong>.</p>
+  <div class="links">
+    <a href="https://github.com/samisalkosuo/ffmpeg-api">Código-fonte</a>
+    <span class="dot">·</span>
+    <a href="https://github.com/fluent-ffmpeg/node-fluent-ffmpeg">fluent-ffmpeg</a>
+    <span class="dot">·</span>
+    <a href="https://github.com/surebert/docker-ffmpeg-service">docker-ffmpeg-service</a>
+    <span class="dot">·</span>
+    <a href="https://github.com/jrottenberg/ffmpeg">jrottenberg/ffmpeg</a>
+  </div>
+</header>
+
+<section class="summary">
+  <h2>Sumário de Endpoints</h2>
+  <table class="summary-table">
+    <thead><tr><th>Método</th><th>Endpoint</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge get">GET</span></td><td><code>/</code></td><td>Esta documentação</td></tr>
+      <tr><td><span class="badge get">GET</span></td><td><code>/endpoints</code></td><td>Lista todos os endpoints em JSON</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/probe</code></td><td>Metadados de qualquer arquivo de mídia</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio/to/mp3</code></td><td>Converte áudio para MP3</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio/to/wav</code></td><td>Converte áudio para WAV</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/video/to/mp4</code></td><td>Converte vídeo para MP4</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/image/to/jpg</code></td><td>Converte imagem para JPG</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/audio</code></td><td>Extrai faixa de áudio de um vídeo</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/images</code></td><td>Extrai frames de um vídeo como PNG</td></tr>
+      <tr><td><span class="badge get">GET</span></td><td><code>/video/extract/download/:filename</code></td><td>Baixa um frame extraído</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/image/to/scroll-video</code></td><td>Gera vídeo de scroll a partir de uma imagem</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/image/to/images-to-video</code></td><td>Cria vídeo a partir de múltiplas imagens</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/subtitle/ass</code></td><td>Aplica legenda com estilos, efeitos e karaoke</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="toolbar">
+  <h2>Endpoints</h2>
+  <div class="btn-group">
+    <button class="btn" onclick="toggleAll(true)">Expandir tudo</button>
+    <button class="btn" onclick="toggleAll(false)">Recolher tudo</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PROBE -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/probe</span>
+    <span class="s-desc">Inspecionar metadados de arquivo de mídia</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Retorna os metadados completos do arquivo — equivalente a <code>ffprobe -of json -show_streams -show_format</code>. Funciona com qualquer formato de mídia.</p>
+    <div class="label">Exemplo</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.mov" HOST:PORT/probe</code></pre></div>
+    <p>Resposta: JSON com streams e formato do arquivo.</p>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ CONVERT AUDIO MP3 -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/audio/to/mp3</span>
+    <span class="s-desc">Converte áudio para MP3</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Codec: <code>libmp3lame</code></p>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.wav" HOST:PORT/convert/audio/to/mp3 &gt; output.mp3
+curl -F "file=@input.m4a" HOST:PORT/convert/audio/to/mp3 &gt; output.mp3</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ CONVERT AUDIO WAV -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/audio/to/wav</span>
+    <span class="s-desc">Converte áudio para WAV</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Codec: <code>pcm_s16le</code></p>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.mp3" HOST:PORT/convert/audio/to/wav &gt; output.wav
+curl -F "file=@input.m4a" HOST:PORT/convert/audio/to/wav &gt; output.wav</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ CONVERT VIDEO MP4 -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/video/to/mp4</span>
+    <span class="s-desc">Converte vídeo para MP4</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Codec: <code>libx264</code> · CRF 18 · preset medium · áudio <code>libfdk_aac</code> 192k · mantém resolução e framerate originais.</p>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.mov" HOST:PORT/convert/video/to/mp4 &gt; output.mp4
+curl -F "file=@input.avi" HOST:PORT/convert/video/to/mp4 &gt; output.mp4
+curl -F "file=@input.mkv" HOST:PORT/convert/video/to/mp4 &gt; output.mp4</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ CONVERT IMAGE JPG -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/image/to/jpg</span>
+    <span class="s-desc">Converte imagem para JPG</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.png"  HOST:PORT/convert/image/to/jpg &gt; output.jpg
+curl -F "file=@input.tiff" HOST:PORT/convert/image/to/jpg &gt; output.jpg
+curl -F "file=@input.webp" HOST:PORT/convert/image/to/jpg &gt; output.jpg</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ EXTRACT AUDIO -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/video/extract/audio</span>
+    <span class="s-desc">Extrai faixa de áudio de um vídeo</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Retorna WAV mono por padrão.</p>
+    <div class="label">Query params</div>
+    <table>
+      <thead><tr><th>Param</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>mono</code></td><td><code>yes</code> / <code>no</code></td><td><code>yes</code></td><td><code>no</code> retorna todos os canais do original</td></tr>
+      </tbody>
+    </table>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Mono (padrão)
+curl -F "file=@input.mov" HOST:PORT/video/extract/audio &gt; output.wav
+
+# Todos os canais
+curl -F "file=@input.mov" HOST:PORT/video/extract/audio?mono=no &gt; output.wav</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ EXTRACT IMAGES -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/video/extract/images</span>
+    <span class="s-desc">Extrai frames de um vídeo como PNG</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Extrai frames do vídeo como PNG. Sem compressão, retorna JSON com URLs para download individual.</p>
+    <div class="label">Query params</div>
+    <table>
+      <thead><tr><th>Param</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>fps</code></td><td>número</td><td><code>1</code></td><td>Frames por segundo a extrair (<code>0.5</code> = 1 frame a cada 2s)</td></tr>
+        <tr><td><code>compress</code></td><td><code>zip</code> / <code>gzip</code></td><td>—</td><td>Retorna todos os frames num único arquivo compactado</td></tr>
+      </tbody>
+    </table>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># 1 frame por segundo — retorna JSON com URLs
+curl -F "file=@input.mp4" HOST:PORT/video/extract/images
+
+# 2 frames por segundo
+curl -F "file=@input.mp4" HOST:PORT/video/extract/images?fps=2
+
+# 1 frame a cada 2 segundos
+curl -F "file=@input.mp4" HOST:PORT/video/extract/images?fps=0.5
+
+# ZIP com todos os frames
+curl -F "file=@input.mp4" HOST:PORT/video/extract/images?compress=zip &gt; frames.zip
+
+# tar.gz com todos os frames
+curl -F "file=@input.mp4" HOST:PORT/video/extract/images?compress=gzip &gt; frames.tar.gz</code></pre></div>
+    <div class="label">Resposta JSON (sem compressão)</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "totalfiles": 3,
+  "description": "Extracted image files and URLs to download them...",
+  "files": [
+    { "name": "abc123-0001.png", "url": "http://HOST:PORT/video/extract/download/abc123-0001.png" },
+    { "name": "abc123-0002.png", "url": "http://HOST:PORT/video/extract/download/abc123-0002.png" }
+  ]
+}</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ DOWNLOAD FRAME -->
+<details>
+  <summary>
+    <span class="badge get">GET</span>
+    <span class="s-path">/video/extract/download/:filename</span>
+    <span class="s-desc">Baixa um frame extraído</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Baixa um frame extraído por <code>/video/extract/images</code> e o apaga do servidor por padrão.</p>
+    <div class="label">Query params</div>
+    <table>
+      <thead><tr><th>Param</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>delete</code></td><td><code>yes</code> / <code>no</code></td><td><code>yes</code></td><td><code>no</code> mantém o arquivo no servidor após o download</td></tr>
+      </tbody>
+    </table>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Baixa e apaga
+curl HOST:PORT/video/extract/download/abc123-0001.png &gt; frame.png
+
+# Baixa sem apagar
+curl HOST:PORT/video/extract/download/abc123-0001.png?delete=no &gt; frame.png</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ SCROLL VIDEO -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/image/to/scroll-video</span>
+    <span class="s-desc">Gera vídeo de scroll a partir de uma imagem longa</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Recebe uma imagem longa (ex: screenshot de página web), escala para a largura alvo e gera um vídeo MP4 com scroll suave de cima para baixo.</p>
+    <div class="label">Query params</div>
+    <table>
+      <thead><tr><th>Param</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>velocidade</code></td><td><code>180</code></td><td>Velocidade do scroll em pixels/segundo</td></tr>
+        <tr><td><code>crf</code></td><td><code>20</code></td><td>Qualidade do vídeo: 0 = perfeito, 51 = pior</td></tr>
+        <tr><td><code>largura</code></td><td><code>1080</code></td><td>Largura do vídeo de saída em pixels</td></tr>
+        <tr><td><code>altura</code></td><td><code>1920</code></td><td>Altura da tela (viewport) em pixels</td></tr>
+        <tr><td><code>fps</code></td><td><code>30</code></td><td>Frames por segundo</td></tr>
+      </tbody>
+    </table>
+    <div class="label">Como funciona</div>
+    <ol style="margin:8px 0 0 0">
+      <li>A imagem é redimensionada para a <code>largura</code> alvo mantendo a proporção.</li>
+      <li>O percurso é calculado: <code>altura_escalada − altura_tela</code>.</li>
+      <li>A duração é calculada: <code>percurso / velocidade</code>.</li>
+      <li>O vídeo é gerado com um crop animado que percorre a imagem de cima a baixo.</li>
+    </ol>
+    <div class="note">Imagens com altura menor que a tela resultam em vídeo muito curto (percurso mínimo = 1px).</div>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Defaults (1080×1920, scroll 180px/s, CRF 20)
+curl -F "file=@foto.jpg" HOST:PORT/image/to/scroll-video &gt; scroll.mp4
+
+# Scroll mais lento, qualidade máxima
+curl -F "file=@foto.jpg" "HOST:PORT/image/to/scroll-video?velocidade=80&amp;crf=15" &gt; scroll.mp4
+
+# 9:16 personalizado, 60fps
+curl -F "file=@foto.jpg" "HOST:PORT/image/to/scroll-video?largura=1080&amp;altura=1920&amp;fps=60" &gt; scroll.mp4
+
+# Scroll rápido para preview
+curl -F "file=@foto.jpg" "HOST:PORT/image/to/scroll-video?velocidade=400&amp;crf=28" &gt; preview.mp4</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ IMAGES TO VIDEO -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/image/to/images-to-video</span>
+    <span class="s-desc">Cria vídeo a partir de múltiplas imagens</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Recebe N imagens via <code>multipart/form-data</code> (campo <code>file</code> repetido) e gera um vídeo MP4 onde cada imagem é exibida por igual tempo, totalizando exatamente <code>totalDuration</code> segundos.</p>
+    <div class="label">Query params</div>
+    <table>
+      <thead><tr><th>Param</th><th>Obrigatório</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>totalDuration</code></td><td>sim</td><td>—</td><td>Duração total do vídeo em segundos</td></tr>
+        <tr><td><code>width</code></td><td>não</td><td><code>1920</code></td><td>Largura em pixels</td></tr>
+        <tr><td><code>height</code></td><td>não</td><td><code>1080</code></td><td>Altura em pixels</td></tr>
+        <tr><td><code>fps</code></td><td>não</td><td><code>30</code></td><td>Frames por segundo</td></tr>
+        <tr><td><code>crf</code></td><td>não</td><td><code>20</code></td><td>Qualidade: 0 = perfeito, 51 = pior</td></tr>
+        <tr><td><code>scale</code></td><td>não</td><td><code>contain</code></td><td>Modo de ajuste da imagem (ver abaixo)</td></tr>
+        <tr><td><code>transition</code></td><td>não</td><td><code>false</code></td><td><code>true</code> adiciona fade suave entre imagens</td></tr>
+      </tbody>
+    </table>
+    <div class="label">Modos de escala</div>
+    <table>
+      <thead><tr><th>Valor</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>contain</code></td><td>Imagem inteira visível com barras pretas nas bordas</td></tr>
+        <tr><td><code>cover</code></td><td>Imagem preenche o frame, pode cortar bordas</td></tr>
+        <tr><td><code>stretch</code></td><td>Imagem esticada para preencher exatamente (distorce)</td></tr>
+        <tr><td><code>fill</code></td><td>Imagem contida centralizada sobre fundo igual borrado (blur)</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      Lógica de tempo:<br>
+      Sem transição: <code>tempoPorImagem = totalDuration / N</code><br>
+      Com transição: <code>tempoPorImagem = (totalDuration + (N−1) × 0.5) / N</code>
+    </div>
+    <div class="note">Limite: até <strong>50 imagens</strong> por requisição. Tamanho máximo total: 512 MB.</div>
+    <div class="label">Exemplos</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># 5 imagens, 30s, 1080p, contain, sem transição
+curl \
+  -F "file=@img1.jpg" -F "file=@img2.jpg" -F "file=@img3.jpg" \
+  -F "file=@img4.jpg" -F "file=@img5.jpg" \
+  "HOST:PORT/image/to/images-to-video?totalDuration=30&amp;width=1920&amp;height=1080" \
+  &gt; slideshow.mp4
+
+# 4 imagens, 20s, 9:16 (reels), cover, com fade
+curl \
+  -F "file=@img1.jpg" -F "file=@img2.jpg" -F "file=@img3.jpg" -F "file=@img4.jpg" \
+  "HOST:PORT/image/to/images-to-video?totalDuration=20&amp;width=1080&amp;height=1920&amp;scale=cover&amp;transition=true" \
+  &gt; reel.mp4
+
+# 3 imagens, fundo borrado, alta qualidade
+curl \
+  -F "file=@img1.png" -F "file=@img2.png" -F "file=@img3.png" \
+  "HOST:PORT/image/to/images-to-video?totalDuration=15&amp;scale=fill&amp;crf=15&amp;transition=true" \
+  &gt; video.mp4</code></pre></div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ SUBTITLE ASS -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/subtitle/ass</span>
+    <span class="s-desc">Aplica legenda com estilos, efeitos e karaoke</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Aceita arquivo ASS já pronto, arquivo SRT ou texto puro. A API gera automaticamente todas as tags ASS necessárias com base no <code>config</code> enviado no request.</p>
+
+    <div class="label">Campos multipart</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>video</code></td><td>arquivo</td><td>sim</td><td>Vídeo de entrada (qualquer formato)</td></tr>
+        <tr><td><code>subtitle</code></td><td>arquivo</td><td>não ¹</td><td>Legenda <code>.ass</code> ou <code>.srt</code></td></tr>
+        <tr><td><code>transcript</code></td><td>texto</td><td>não ¹</td><td>Conteúdo SRT ou texto puro (campo de texto, não arquivo)</td></tr>
+        <tr><td><code>config</code></td><td>texto</td><td>não</td><td>JSON com configurações de estilo/efeito (padrões se omitido)</td></tr>
+        <tr><td><code>font</code>, <code>font0</code>…<code>font9</code></td><td>arquivo</td><td>não</td><td>Fontes TTF/OTF customizadas</td></tr>
+      </tbody>
+    </table>
+    <div class="note">¹ Ao menos um entre <code>subtitle</code> (arquivo) ou <code>transcript</code> (texto) é obrigatório.</div>
+
+    <div class="label">Modo de operação</div>
+    <table>
+      <thead><tr><th>mode</th><th>Saída</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>burn</code> (padrão)</td><td>.mp4</td><td>Legenda renderizada diretamente no vídeo</td></tr>
+        <tr><td><code>soft</code></td><td>.mkv</td><td>Legenda como faixa separada (vídeo/áudio não re-encodados)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">Estrutura do config JSON</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "mode": "burn",
+  "playResX": 1920,
+  "playResY": 1080,
+  "wordsPerLine": 0,
+
+  "style": {
+    "fontname":     "FreeSans",
+    "fontsize":     60,
+    "primaryColor": "#FFFFFF",
+    "outlineColor": "#000000",
+    "shadowColor":  "#000000",
+    "backColor":    "#000000",
+    "primaryAlpha": 0,
+    "outlineAlpha": 0,
+    "shadowAlpha":  0,
+    "backAlpha":    0.5,
+    "bold":         false,
+    "italic":       false,
+    "underline":    false,
+    "strikeout":    false,
+    "scaleX":       100,
+    "scaleY":       100,
+    "spacing":      0,
+    "angle":        0,
+    "borderStyle":  1,
+    "outline":      2,
+    "shadow":       1,
+    "alignment":    2,
+    "marginL":      20,
+    "marginR":      20,
+    "marginV":      80,
+    "position":     "bottom"
+  },
+
+  "effects": {
+    "preset": "none"
+  },
+
+  "animation": {
+    "duration":  250,
+    "intensity": 1.0,
+    "delay":     0,
+    "speed":     "normal"
+  },
+
+  "karaoke": {
+    "enabled":        false,
+    "mode":           "kf",
+    "highlightColor": "#FFFF00",
+    "textColor":      "#FFFFFF",
+    "outlineColor":   "#000000",
+    "shadowColor":    "#000000"
+  },
+
+  "output": {
+    "crf":     20,
+    "preset":  "medium",
+    "fps":     null,
+    "threads": 8
+  },
+
+  "advanced": {}
+}</code></pre></div>
+
+    <!-- wordsPerLine -->
+    <div class="label">wordsPerLine — Palavras por tela</div>
+    <p>Controla quantas palavras aparecem por bloco de legenda. Útil quando o arquivo de entrada tem muitas palavras por linha.</p>
+    <table>
+      <thead><tr><th>Valor</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>0</code> ou omitido</td><td>Sistema decide (comportamento padrão, sem divisão)</td></tr>
+        <tr><td><code>1</code></td><td>Uma palavra por vez</td></tr>
+        <tr><td><code>4</code></td><td>Máximo 4 palavras por bloco</td></tr>
+        <tr><td><code>N</code></td><td>Máximo N palavras por bloco</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Para arquivos ASS com karaoke (<code>\k</code> tags): o tempo de cada grupo é recalculado com base na duração real das sílabas — o karaoke continua preciso. Para SRT e texto puro: o tempo do bloco original é distribuído proporcionalmente.</div>
+
+    <!-- ASS without styles -->
+    <div class="label">ASS sem estilos — configuração automática</div>
+    <p>Quando o arquivo <code>.ass</code> não possui uma seção <code>[V4+ Styles]</code>, a API injeta automaticamente o estilo gerado a partir do <code>config</code> do request.</p>
+    <p>Isso permite manter o arquivo <code>.ass</code> com apenas os timings e tags de karaoke, delegando toda a aparência visual ao config.</p>
+    <table>
+      <thead><tr><th>Chave karaoke</th><th>Efeito no estilo ASS</th></tr></thead>
+      <tbody>
+        <tr><td><code>karaoke.textColor</code></td><td>Cor do texto ainda não falado (SecondaryColour)</td></tr>
+        <tr><td><code>karaoke.highlightColor</code></td><td>Cor da palavra ativa no momento (PrimaryColour)</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Se o <code>.ass</code> já tiver <code>[V4+ Styles]</code>, ele é usado diretamente sem modificação.</div>
+
+    <!-- Fonts -->
+    <div class="label">Fontes disponíveis no servidor</div>
+    <table>
+      <thead><tr><th>Fonte</th><th>fontname</th><th>Estilo</th></tr></thead>
+      <tbody>
+        <tr><td>Bebas Neue</td><td><code>Bebas Neue</code></td><td>Display, todas maiúsculas</td></tr>
+        <tr><td>Open Sans Regular</td><td><code>Open Sans</code></td><td>Sans-serif, leitura</td></tr>
+        <tr><td>Open Sans Bold</td><td><code>Open Sans</code> + <code>"bold": true</code></td><td>Sans-serif, negrito</td></tr>
+        <tr><td>FreeSans</td><td><code>FreeSans</code></td><td>Sans-serif genérico</td></tr>
+        <tr><td>FreeSans Bold</td><td><code>FreeSans</code> + <code>"bold": true</code></td><td></td></tr>
+        <tr><td>FreeSerif</td><td><code>FreeSerif</code></td><td>Serifada</td></tr>
+        <tr><td>FreeMono</td><td><code>FreeMono</code></td><td>Monoespaçada</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Para fontes customizadas, envie o arquivo TTF/OTF no campo <code>font0</code> e referencie o nome interno da fonte em <code>fontname</code>.</div>
+
+    <!-- Position -->
+    <div class="label">Posicionamento (style.position)</div>
+    <table>
+      <thead><tr><th>Valor</th><th>Posição visual</th><th>Âncora</th></tr></thead>
+      <tbody>
+        <tr><td><code>"bottom"</code> (padrão)</td><td>Parte inferior centralizada</td><td>inferior-centro</td></tr>
+        <tr><td><code>"lower"</code></td><td>Entre o centro e o inferior (~75% da tela)</td><td>inferior-centro</td></tr>
+        <tr><td><code>"center"</code></td><td>Centro da tela</td><td>centro</td></tr>
+        <tr><td><code>"upper"</code></td><td>Entre o centro e o superior (~25% da tela)</td><td>superior-centro</td></tr>
+        <tr><td><code>"top"</code></td><td>Parte superior centralizada</td><td>superior-centro</td></tr>
+        <tr><td><code>{ "x": 960, "y": 540 }</code></td><td>Posição manual em pixels</td><td>centro do texto</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <strong>Posição manual <code>{x, y}</code>:</strong> As coordenadas são relativas ao <code>playResX</code> / <code>playResY</code> (padrão 1920×1080).
+      O ponto informado é o <strong>centro</strong> do bloco de texto.
+      Para vídeos verticais (1080×1920), defina <code>"playResX": 1080, "playResY": 1920</code> e use coordenadas correspondentes.
+    </div>
+
+    <!-- Alignment -->
+    <div class="label">Alinhamento numérico (style.alignment)</div>
+    <p>Valores de 1 a 9 no estilo numpad:</p>
+    <div class="align-grid">
+      <div class="cell">7</div><div class="cell named">8<br><small>top</small></div><div class="cell">9</div>
+      <div class="cell">4</div><div class="cell named">5<br><small>center</small></div><div class="cell">6</div>
+      <div class="cell">1</div><div class="cell named">2<br><small>bottom</small></div><div class="cell">3</div>
+    </div>
+
+    <!-- Transparency -->
+    <div class="label">Transparência (*Alpha)</div>
+    <p><code>0.0</code> = completamente opaco · <code>1.0</code> = completamente transparente. Aplica-se a <code>primaryAlpha</code>, <code>outlineAlpha</code>, <code>shadowAlpha</code> e <code>backAlpha</code>.</p>
+
+    <!-- Effects -->
+    <div class="label">Efeitos disponíveis (effects.preset)</div>
+    <table>
+      <thead><tr><th>Preset</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>none</code></td><td>Sem efeito</td></tr>
+        <tr><td><code>fade</code></td><td>Fade in/out suave</td></tr>
+        <tr><td><code>pop</code></td><td>Cresce do tamanho mínimo</td></tr>
+        <tr><td><code>zoom</code></td><td>Zoom out de tamanho maior</td></tr>
+        <tr><td><code>bounce</code></td><td>Cresce com leve bounce</td></tr>
+        <tr><td><code>slide-left</code></td><td>Entra pela direita</td></tr>
+        <tr><td><code>slide-right</code></td><td>Entra pela esquerda</td></tr>
+        <tr><td><code>slide-top</code></td><td>Entra de baixo</td></tr>
+        <tr><td><code>slide-bottom</code></td><td>Entra de cima</td></tr>
+        <tr><td><code>glow</code></td><td>Desfoque que clareia até nítido</td></tr>
+        <tr><td><code>neon</code></td><td>Brilho com fade in</td></tr>
+        <tr><td><code>shake</code></td><td>Tremor rotacional</td></tr>
+        <tr><td><code>pulse</code></td><td>Pulso de escala</td></tr>
+        <tr><td><code>cinematic</code></td><td>Fade + leve blur permanente</td></tr>
+        <tr><td><code>blur-in</code></td><td>Entra borrado e foca</td></tr>
+        <tr><td><code>blur-out</code></td><td>Sai ficando borrado</td></tr>
+        <tr><td><code>scale-up</code></td><td>Cresce de 10% a 100%</td></tr>
+        <tr><td><code>scale-down</code></td><td>Diminui de 180% a 100%</td></tr>
+        <tr><td><code>typewriter</code></td><td>Caracteres aparecem um a um</td></tr>
+        <tr><td><code>karaoke</code></td><td>Sem efeito extra — use <code>karaoke.enabled</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- Karaoke modes -->
+    <div class="label">Karaoke — modos (karaoke.mode)</div>
+    <table>
+      <thead><tr><th>Modo</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>k</code></td><td>Destaque simples — texto muda de cor instantaneamente</td></tr>
+        <tr><td><code>K</code></td><td>Igual <code>kf</code></td></tr>
+        <tr><td><code>kf</code></td><td>Destaque com preenchimento da esquerda para a direita</td></tr>
+        <tr><td><code>ko</code></td><td>Destaque apenas no contorno</td></tr>
+      </tbody>
+    </table>
+    <p>A distribuição do tempo entre as palavras é feita automaticamente quando <code>karaoke.enabled: true</code>.</p>
+
+    <!-- Examples -->
+    <div class="label">Exemplos</div>
+
+    <div class="sub">
+      <h3>Burn simples com SRT</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Burn com estilo personalizado e efeito fade</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  -F 'config={"mode":"burn","style":{"fontsize":72,"primaryColor":"#FFFF00","outlineColor":"#000000","outline":3,"marginV":100},"effects":{"preset":"fade"},"animation":{"duration":300}}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>ASS com karaoke pré-definido + cores via config</h3>
+      <p>Envie um <code>.ass</code> que já tem os timings e tags <code>\k</code>, mas sem <code>[V4+ Styles]</code>. A API injeta o estilo do config automaticamente.</p>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.ass" \
+  -F 'config={
+    "mode": "burn",
+    "style": { "fontname": "Bebas Neue", "fontsize": 60, "marginV": 150 },
+    "effects": { "preset": "fade" },
+    "animation": { "duration": 250 },
+    "karaoke": { "enabled": false, "highlightColor": "#FFFF00", "textColor": "#FFFFFF" }
+  }' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Config completa com posição manual (vídeo vertical)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  -F 'config={
+    "mode": "burn",
+    "playResX": 1080,
+    "playResY": 1920,
+    "wordsPerLine": 4,
+    "style": {
+      "fontname": "Bebas Neue",
+      "fontsize": 60,
+      "primaryColor": "#FFFFFF",
+      "outlineColor": "#000000",
+      "shadowColor":  "#000000",
+      "backColor":    "#000000",
+      "primaryAlpha": 0,
+      "outlineAlpha": 0,
+      "shadowAlpha":  0,
+      "backAlpha":    0.5,
+      "bold": false,
+      "outline": 2,
+      "shadow": 1,
+      "position": { "x": 540, "y": 1400 }
+    },
+    "effects":   { "preset": "fade" },
+    "animation": { "duration": 250, "intensity": 1.0, "delay": 0 },
+    "karaoke":   { "enabled": false, "highlightColor": "#FFFF00", "textColor": "#FFFFFF" },
+    "output":    { "crf": 20, "preset": "medium", "threads": 8 }
+  }' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+      <div class="note"><code>x: 540</code> = centro horizontal de um vídeo 1080px. &nbsp;<code>y: 1400</code> = ~73% de altura em um vídeo 1920px.</div>
+    </div>
+
+    <div class="sub">
+      <h3>wordsPerLine — dividir legenda em grupos de palavras</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># SRT com máximo 4 palavras por bloco
+curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  -F 'config={"wordsPerLine":4,"style":{"fontname":"Bebas Neue","fontsize":60},"effects":{"preset":"fade"}}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4
+
+# ASS com karaoke, agrupando de 5 em 5 palavras
+curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda_karaoke.ass" \
+  -F 'config={"wordsPerLine":5,"karaoke":{"enabled":false,"highlightColor":"#FFFF00","textColor":"#FFFFFF"}}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Karaoke com SRT (API adiciona \k automaticamente)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  -F 'config={"karaoke":{"enabled":true,"mode":"kf","highlightColor":"#FFFF00","textColor":"#FFFFFF"},"effects":{"preset":"fade"}}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Texto puro (geração automática de timing)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "transcript=Primeira parte do texto" \
+  -F 'config={"style":{"fontsize":60},"effects":{"preset":"slide-left"}}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Soft subtitle (faixa separada, sem re-encode)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.ass" \
+  -F 'config={"mode":"soft"}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mkv</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fonte customizada</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  -F "font0=@MinhaFonte.ttf" \
+  -F 'config={"style":{"fontname":"MinhaFonte","fontsize":64}}' \
+  "HOST:PORT/subtitle/ass" \
+  &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Exemplo n8n (HTTP Request node)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "method": "POST",
+  "url": "http://HOST:PORT/subtitle/ass",
+  "sendBody": true,
+  "contentType": "multipart-form-data",
+  "bodyParameters": {
+    "parameters": [
+      { "name": "video",    "value": "={{ $binary.video }}",    "parameterType": "formBinaryData" },
+      { "name": "subtitle", "value": "={{ $binary.subtitle }}", "parameterType": "formBinaryData" },
+      {
+        "name":  "config",
+        "value": "={{ JSON.stringify({ mode: 'burn', wordsPerLine: 4, style: { fontname: 'Bebas Neue', fontsize: 60, primaryColor: '#FFFFFF', marginV: 150 }, effects: { preset: 'fade' }, animation: { duration: 250 }, karaoke: { enabled: false, highlightColor: '#FFFF00', textColor: '#FFFFFF' } }) }}",
+        "parameterType": "formData"
+      }
+    ]
+  },
+  "options": { "response": { "response": { "responseFormat": "file" } } }
+}</code></pre></div>
+    </div>
+
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ FOOTER -->
+<div class="footer-section" style="margin-top:32px">
+  <div class="label">Parâmetros globais</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:8px">
+    <p>Por padrão, o arquivo gerado é apagado do servidor após o download. Para manter, use <code>?delete=no</code> em qualquer endpoint de download.</p>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.mov" HOST:PORT/convert/video/to/mp4?delete=no &gt; output.mp4</code></pre></div>
+  </div>
+
+  <div class="label">Variáveis de ambiente</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:8px">
+    <table>
+      <thead><tr><th>Variável</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>LOG_LEVEL</code></td><td><code>info</code></td><td>Nível de log: <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code></td></tr>
+        <tr><td><code>FILE_SIZE_LIMIT_BYTES</code></td><td><code>536870912</code></td><td>Tamanho máximo de upload (padrão = 512 MB)</td></tr>
+        <tr><td><code>KEEP_ALL_FILES</code></td><td><code>false</code></td><td>Se <code>true</code>, não apaga arquivos temporários do <code>/tmp</code></td></tr>
+        <tr><td><code>EXTERNAL_PORT</code></td><td>—</td><td>Porta externa (Docker/K8s) usada nas URLs de download de frames</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="label">Formatos suportados</div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px">
+    <p>O FFmpeg suporta praticamente todos os formatos de mídia. Consulte a <a href="https://www.ffmpeg.org/general.html#Supported-File-Formats_002c-Codecs-or-Features">lista oficial</a> para detalhes.</p>
+    <p>Exemplos de entrada aceitos: <code>.mov</code>, <code>.avi</code>, <code>.mkv</code>, <code>.mp4</code>, <code>.m4a</code>, <code>.wav</code>, <code>.mp3</code>, <code>.flac</code>, <code>.ogg</code>, <code>.webm</code>, <code>.png</code>, <code>.jpg</code>, <code>.tiff</code>, <code>.webp</code>, <code>.bmp</code> e muitos outros.</p>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+function toggleAll(open) {
+  document.querySelectorAll('details').forEach(function(d){ d.open = open; });
+}
+function copyCode(btn) {
+  var code = btn.parentElement.querySelector('code');
+  if (!code) return;
+  navigator.clipboard.writeText(code.textContent).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'Copiado!';
+    btn.classList.add('copied');
+    setTimeout(function(){ btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+</body>
+</html>

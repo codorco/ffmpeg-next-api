@@ -35,7 +35,25 @@ RUN npm install
 RUN pkg --targets node18-alpine-x64 /usr/src/app/package.json
 
 
-FROM jrottenberg/ffmpeg:4.2-alpine311
+FROM jrottenberg/ffmpeg:4.4-alpine
+
+# Install base fonts and fontconfig
+RUN apk add --no-cache ttf-freefont fontconfig
+
+# Copy custom fonts (Bebas Neue, Open Sans)
+COPY fonts/*.ttf /usr/share/fonts/custom/
+
+# Replace fonts.conf with a simplified version compatible with the older
+# fontconfig library bundled in the jrottenberg/ffmpeg image.
+# The Alpine 3.13 generated fonts.conf uses its:rules (ITS schema) which
+# that older library cannot parse, causing "Cannot load default config file".
+COPY fonts/fonts.conf /etc/fonts/fonts.conf
+
+# Point fontconfig to our simplified config at runtime
+ENV FONTCONFIG_FILE=/etc/fonts/fonts.conf
+
+# Pre-build font cache into /var/cache/fontconfig
+RUN mkdir -p /var/cache/fontconfig && fc-cache -f /usr/share/fonts/ 2>/dev/null || true
 
 # Create user and change workdir
 RUN adduser --disabled-password --home /home/ffmpgapi ffmpgapi
@@ -43,7 +61,7 @@ WORKDIR /home/ffmpgapi
 
 # Copy files from build stage
 COPY --from=build /usr/src/app/ffmpegapi .
-COPY --from=build /usr/src/app/index.md .
+COPY --from=build /usr/src/app/index.html .
 RUN chown ffmpgapi:ffmpgapi * && chmod 755 ffmpegapi
 
 EXPOSE 3000

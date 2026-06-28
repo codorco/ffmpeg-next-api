@@ -1,4 +1,5 @@
 const express = require('express');
+const path    = require('path');
 const app = express();
 const compression = require('compression');
 const all_routes = require('express-list-endpoints');
@@ -38,9 +39,16 @@ app.use('/video/extract', extract);
 var probe = require('./routes/probe.js');
 app.use('/probe', probe);
 
-require('express-readme')(app, {
-    filename: 'index.md',
-    routes: ['/'],
+//routes to generate video from image
+var image = require('./routes/image.js');
+app.use('/image', image);
+
+//routes to burn or attach subtitle to video
+var subtitle = require('./routes/subtitle.js');
+app.use('/subtitle', subtitle);
+
+app.get('/', function(req, res) {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const server = app.listen(constants.serverPort, function() {
