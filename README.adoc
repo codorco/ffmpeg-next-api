@@ -5,12 +5,78 @@ A web service for converting audio/video/image files using FFMPEG.
 Based on:
 
 * https://github.com/surebert/docker-ffmpeg-service
-* https://github.com/jrottenberg/ffmpeg 
+* https://github.com/jrottenberg/ffmpeg
 * https://github.com/fluent-ffmpeg/node-fluent-ffmpeg
 
 Fork on:
 
 * https://github.com/samisalkosuo/ffmpeg-api
+
+== New Features in This Fork
+
+The following endpoints were added on top of the original project:
+
+=== POST /image/to/scroll-video
+
+Receives a tall image (e.g. a webpage screenshot) and generates a smooth top-to-bottom scrolling MP4 video.
+
+Query params: `velocidade` (px/s, default 180), `crf` (0–51, default 20), `largura` (px, default 1080), `altura` (px, default 1920), `fps` (default 30).
+
+----
+curl -F "file=@screenshot.png" HOST:PORT/image/to/scroll-video > scroll.mp4
+----
+
+=== POST /image/to/images-to-video
+
+Creates a video slideshow from multiple uploaded images. Each image is displayed for an equal portion of the requested total duration.
+
+Query params: `totalDuration` (required, seconds), `width` (default 1920), `height` (default 1080), `fps` (default 30), `crf` (default 20), `scale` (contain/cover/stretch/fill, default contain), `transition` (true/false, default false).
+
+----
+curl \
+  -F "file=@img1.jpg" -F "file=@img2.jpg" -F "file=@img3.jpg" \
+  "HOST:PORT/image/to/images-to-video?totalDuration=15&scale=cover" \
+  > slideshow.mp4
+----
+
+=== POST /subtitle/ass
+
+Burns or soft-attaches subtitles to a video with full ASS styling, effects, karaoke highlighting, and typewriter animations. Accepts ASS, SRT, or plain text.
+
+----
+curl \
+  -F "video=@video.mp4" \
+  -F "subtitle=@legenda.srt" \
+  -F 'config={"style":{"fontsize":72},"effects":{"preset":"fade"}}' \
+  HOST:PORT/subtitle/ass > output.mp4
+----
+
+=== POST /video/add/audio
+
+Adds up to 5 audio tracks to a video with per-track control over volume, trim, delay, loop, fade, and playback rate. Supports mix and streams modes, ducking (automatic music reduction during speech), crossfade between tracks, normalization, and afterVideo extensions (freeze/color/image) when the audio outlasts the video.
+
+No FFmpeg knowledge required — describe the result in JSON and the API builds all filters automatically.
+
+----
+# Add looping background music at 30% volume
+curl \
+  -F "video=@video.mp4" \
+  -F "track0=@music.mp3" \
+  -F 'config={"tracks":[{"volume":0.3,"loop":true}],"originalAudio":"keep"}' \
+  HOST:PORT/video/add/audio > output.mp4
+
+# Voice + music with automatic ducking
+curl \
+  -F "video=@video.mp4" \
+  -F "track0=@voice.mp3" \
+  -F "track1=@music.mp3" \
+  -F 'config={
+    "originalAudio":"remove",
+    "tracks":[{"volume":1.0},{"volume":0.5,"loop":true}],
+    "ducking":{"enabled":true,"voiceTrack":0,"musicTrack":1,"musicVolume":0.15}
+  }' \
+  HOST:PORT/video/add/audio > output.mp4
+----
 
 FFMPEG API is provided as Docker image for easy consumption.
 

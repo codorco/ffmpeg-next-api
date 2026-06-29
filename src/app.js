@@ -47,6 +47,10 @@ app.use('/image', image);
 var subtitle = require('./routes/subtitle.js');
 app.use('/subtitle', subtitle);
 
+//routes to add/mix audio tracks onto a video
+var addaudio = require('./routes/addaudio.js');
+app.use('/video', addaudio);
+
 app.get('/', function(req, res) {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

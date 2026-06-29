@@ -145,6 +145,7 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge post">POST</span></td><td><code>/image/to/scroll-video</code></td><td>Gera vídeo de scroll a partir de uma imagem</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/image/to/images-to-video</code></td><td>Cria vídeo a partir de múltiplas imagens</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/subtitle/ass</code></td><td>Aplica legenda com estilos, efeitos e karaoke</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/video/add/audio</code></td><td>Adiciona e mistura trilhas de áudio em um vídeo</td></tr>
     </tbody>
   </table>
 </section>
@@ -826,6 +827,360 @@ curl \
       {
         "name":  "config",
         "value": "={{ JSON.stringify({ mode: 'burn', wordsPerLine: 4, style: { fontname: 'Bebas Neue', fontsize: 60, primaryColor: '#FFFFFF', marginV: 150 }, effects: { preset: 'fade' }, animation: { duration: 250 }, karaoke: { enabled: false, highlightColor: '#FFFF00', textColor: '#FFFFFF' } }) }}",
+        "parameterType": "formData"
+      }
+    ]
+  },
+  "options": { "response": { "response": { "responseFormat": "file" } } }
+}</code></pre></div>
+    </div>
+
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ VIDEO ADD AUDIO -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/video/add/audio</span>
+    <span class="s-desc">Adiciona e mistura trilhas de áudio em um vídeo</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Recebe um vídeo e até <strong>5 trilhas de áudio</strong>. A API monta automaticamente todos os filtros FFmpeg com base em um JSON de configuração. Ideal para YouTube, Shorts, Reels, TikTok, Instagram e automações via n8n.</p>
+
+    <div class="label">Campos multipart</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>video</code></td><td>arquivo</td><td>sim</td><td>Vídeo de entrada (mp4, mkv, mov, webm, avi…)</td></tr>
+        <tr><td><code>track0</code>…<code>track4</code></td><td>arquivo</td><td>não</td><td>Trilhas de áudio (mp3, wav, aac, ogg…)</td></tr>
+        <tr><td><code>image</code></td><td>arquivo</td><td>não</td><td>Imagem para <code>afterVideo.mode="image"</code></td></tr>
+        <tr><td><code>config</code></td><td>texto</td><td>não</td><td>JSON de configuração (padrões se omitido)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">Estrutura do config JSON (todos os campos opcionais)</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "mode":          "mix",
+  "originalAudio": "keep",
+  "duration":      "video",
+  "normalize":     false,
+  "crossfade":     0,
+
+  "ducking": {
+    "enabled":     false,
+    "voiceTrack":  0,
+    "musicTrack":  1,
+    "musicVolume": 0.20
+  },
+
+  "afterVideo": {
+    "mode":     "freeze",
+    "color":    "black",
+    "image":    null,
+    "duration": "audio"
+  },
+
+  "tracks": [
+    {
+      "volume":       1.0,
+      "delay":        0,
+      "loop":         false,
+      "mute":         false,
+      "fadeIn":       0,
+      "fadeOut":      0,
+      "playbackRate": 1.0,
+      "trim": { "start": 0, "end": null }
+    }
+  ]
+}</code></pre></div>
+
+    <div class="label">mode — modo de mixagem</div>
+    <table>
+      <thead><tr><th>Valor</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>mix</code> (padrão)</td><td>Mistura todas as trilhas em um único stream de áudio</td></tr>
+        <tr><td><code>streams</code></td><td>Cada trilha fica como stream independente no container (selecionável pelo player)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">originalAudio — áudio original do vídeo</div>
+    <table>
+      <thead><tr><th>Valor</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>keep</code> (padrão)</td><td>Mantém o áudio original e mistura com as trilhas</td></tr>
+        <tr><td><code>remove</code></td><td>Remove completamente o áudio original</td></tr>
+        <tr><td><code>mute</code></td><td>Inclui o áudio original com volume 0 (silenciado)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">duration — controle de duração</div>
+    <table>
+      <thead><tr><th>Valor</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>video</code> (padrão)</td><td>O vídeo determina a duração — áudio maior é cortado</td></tr>
+        <tr><td><code>audio</code></td><td>O áudio determina a duração — use <code>afterVideo</code> para estender o vídeo</td></tr>
+        <tr><td><code>longest</code></td><td>Usa a maior duração entre vídeo e áudio</td></tr>
+        <tr><td><code>shortest</code></td><td>Usa a menor duração entre vídeo e áudio</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">afterVideo — o que exibir quando o vídeo terminar</div>
+    <p>Usado quando <code>duration</code> é <code>"audio"</code> ou <code>"longest"</code> e o áudio é mais longo que o vídeo.</p>
+    <table>
+      <thead><tr><th>mode</th><th>Comportamento</th></tr></thead>
+      <tbody>
+        <tr><td><code>freeze</code></td><td>Congela o último frame do vídeo</td></tr>
+        <tr><td><code>color</code></td><td>Tela sólida com a cor informada em <code>color</code> (ex: <code>"black"</code>, <code>"#1a1a1a"</code>)</td></tr>
+        <tr><td><code>image</code></td><td>Exibe a imagem enviada no campo <code>image</code></td></tr>
+      </tbody>
+    </table>
+    <p>O campo <code>afterVideo.duration</code> pode ser <code>"audio"</code> (calcula automaticamente) ou um número em segundos.</p>
+
+    <div class="label">Configuração por trilha (tracks[i])</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>volume</code></td><td><code>1.0</code></td><td>Volume: <code>0</code> = silêncio, <code>1</code> = original, <code>2</code> = dobro</td></tr>
+        <tr><td><code>delay</code></td><td><code>0</code></td><td>Atraso para iniciar a trilha (milissegundos)</td></tr>
+        <tr><td><code>loop</code></td><td><code>false</code></td><td>Repetir automaticamente a trilha até o fim do vídeo</td></tr>
+        <tr><td><code>mute</code></td><td><code>false</code></td><td>Ignorar esta trilha sem removê-la da configuração</td></tr>
+        <tr><td><code>fadeIn</code></td><td><code>0</code></td><td>Duração do fade in em segundos</td></tr>
+        <tr><td><code>fadeOut</code></td><td><code>0</code></td><td>Duração do fade out em segundos</td></tr>
+        <tr><td><code>playbackRate</code></td><td><code>1.0</code></td><td>Velocidade de reprodução: <code>0.5</code>–<code>2.0</code></td></tr>
+        <tr><td><code>trim.start</code></td><td><code>0</code></td><td>Início do recorte em segundos</td></tr>
+        <tr><td><code>trim.end</code></td><td><code>null</code></td><td>Fim do recorte em segundos (<code>null</code> = até o fim)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">ducking — redução automática de volume</div>
+    <p>Quando a trilha de voz estiver ativa, a música reduz automaticamente o volume.</p>
+    <table>
+      <thead><tr><th>Campo</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>enabled</code></td><td><code>false</code></td><td>Ativa o ducking</td></tr>
+        <tr><td><code>voiceTrack</code></td><td><code>0</code></td><td>Índice da trilha de voz (track0 = 0)</td></tr>
+        <tr><td><code>musicTrack</code></td><td><code>1</code></td><td>Índice da trilha de música a ser reduzida</td></tr>
+        <tr><td><code>musicVolume</code></td><td><code>0.20</code></td><td>Volume da música durante a fala (0.0–1.0)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">Exemplos</div>
+
+    <div class="sub">
+      <h3>Adicionar 1 áudio com controle de volume</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@audio.mp3" \
+  -F 'config={
+    "originalAudio": "remove",
+    "tracks": [
+      { "volume": 0.8 }
+    ]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>3 áudios com volume e fade</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@narracao.mp3" \
+  -F "track1=@musica.mp3" \
+  -F "track2=@efeito.mp3" \
+  -F 'config={
+    "originalAudio": "remove",
+    "tracks": [
+      { "volume": 1.0, "fadeIn": 0.5, "fadeOut": 1.0 },
+      { "volume": 0.4, "loop": true, "fadeIn": 2.0, "fadeOut": 3.0 },
+      { "volume": 0.7, "fadeIn": 0.2, "fadeOut": 0.5 }
+    ]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Adicionar música de fundo com loop</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@musica.mp3" \
+  -F 'config={"tracks":[{"volume":0.3,"loop":true}],"originalAudio":"keep"}' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Narração + música de fundo com ducking</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@voz.mp3" \
+  -F "track1=@musica.mp3" \
+  -F 'config={
+    "originalAudio": "remove",
+    "tracks": [
+      { "volume": 1.0 },
+      { "volume": 0.5, "loop": true }
+    ],
+    "ducking": {
+      "enabled": true,
+      "voiceTrack": 0,
+      "musicTrack": 1,
+      "musicVolume": 0.15
+    }
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Remover áudio original</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@novo_audio.mp3" \
+  -F 'config={"originalAudio":"remove"}' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Trim + fade + playbackRate</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@musica.mp3" \
+  -F 'config={
+    "originalAudio": "remove",
+    "tracks": [{
+      "trim": { "start": 30, "end": 90 },
+      "fadeIn": 2,
+      "fadeOut": 3,
+      "playbackRate": 1.05,
+      "volume": 0.8
+    }]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Crossfade entre múltiplas músicas</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@musica1.mp3" \
+  -F "track1=@musica2.mp3" \
+  -F 'config={
+    "originalAudio": "remove",
+    "crossfade": 2,
+    "tracks": [{ "volume": 0.8 }, { "volume": 0.8 }]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Normalização de volume</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@voz.mp3" \
+  -F "track1=@musica.mp3" \
+  -F 'config={
+    "normalize": true,
+    "originalAudio": "remove",
+    "tracks": [{ "volume": 1.0 }, { "volume": 0.4, "loop": true }]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Áudio maior que vídeo — congelar último frame</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@audio_longo.mp3" \
+  -F 'config={
+    "duration": "audio",
+    "originalAudio": "remove",
+    "afterVideo": { "mode": "freeze", "duration": "audio" }
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>afterVideo — tela preta após o vídeo</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@audio.mp3" \
+  -F 'config={
+    "duration": "audio",
+    "originalAudio": "remove",
+    "afterVideo": { "mode": "color", "color": "black", "duration": "audio" }
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>afterVideo — imagem personalizada após o vídeo</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@audio.mp3" \
+  -F "image=@end_card.png" \
+  -F 'config={
+    "duration": "audio",
+    "originalAudio": "remove",
+    "afterVideo": { "mode": "image", "duration": "audio" }
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Modo streams (trilhas separadas)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@narracao.mp3" \
+  -F "track1=@musica.mp3" \
+  -F 'config={
+    "mode": "streams",
+    "originalAudio": "keep",
+    "tracks": [{ "volume": 1.0 }, { "volume": 0.4, "loop": true }]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Delay — iniciar trilha após 5 segundos</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@video.mp4" \
+  -F "track0=@efeito_sonoro.mp3" \
+  -F 'config={
+    "originalAudio": "keep",
+    "tracks": [{ "delay": 5000 }]
+  }' \
+  HOST:PORT/video/add/audio &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Exemplo n8n (HTTP Request node)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "method": "POST",
+  "url": "http://HOST:PORT/video/add/audio",
+  "sendBody": true,
+  "contentType": "multipart-form-data",
+  "bodyParameters": {
+    "parameters": [
+      { "name": "video",  "value": "={{ $binary.video }}",  "parameterType": "formBinaryData" },
+      { "name": "track0", "value": "={{ $binary.audio }}", "parameterType": "formBinaryData" },
+      {
+        "name":  "config",
+        "value": "={{ JSON.stringify({ originalAudio: 'remove', tracks: [{ volume: 0.8, loop: true }] }) }}",
         "parameterType": "formData"
       }
     ]
