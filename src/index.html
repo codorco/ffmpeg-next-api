@@ -137,7 +137,6 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge post">POST</span></td><td><code>/probe</code></td><td>Metadados de qualquer arquivo de mídia</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio/to/mp3</code></td><td>Converte áudio para MP3</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio/to/wav</code></td><td>Converte áudio para WAV</td></tr>
-      <tr><td><span class="badge post">POST</span></td><td><code>/convert/video/to/mp4</code></td><td>Converte vídeo para MP4</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/image/to/jpg</code></td><td>Converte imagem para JPG</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/audio</code></td><td>Extrai faixa de áudio de um vídeo</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/images</code></td><td>Extrai frames de um vídeo como PNG</td></tr>
@@ -146,6 +145,7 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge post">POST</span></td><td><code>/image/to/images-to-video</code></td><td>Cria vídeo a partir de múltiplas imagens</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/subtitle/ass</code></td><td>Aplica legenda com estilos, efeitos e karaoke</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/add/audio</code></td><td>Adiciona e mistura trilhas de áudio em um vídeo</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/video</code></td><td>Transcodificação profissional de vídeo (container, resolução, codecs, HDR, etc.)</td></tr>
     </tbody>
   </table>
 </section>
@@ -209,23 +209,6 @@ curl -F "file=@input.m4a" HOST:PORT/convert/audio/to/wav &gt; output.wav</code><
   </div>
 </details>
 
-<!-- ══════════════════════════════════════════════════════ CONVERT VIDEO MP4 -->
-<details>
-  <summary>
-    <span class="badge post">POST</span>
-    <span class="s-path">/convert/video/to/mp4</span>
-    <span class="s-desc">Converte vídeo para MP4</span>
-    <span class="arrow">&#9656;</span>
-  </summary>
-  <div class="body">
-    <p>Codec: <code>libx264</code> · CRF 18 · preset medium · áudio <code>libfdk_aac</code> 192k · mantém resolução e framerate originais.</p>
-    <div class="label">Exemplos</div>
-    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<pre><code>curl -F "file=@input.mov" HOST:PORT/convert/video/to/mp4 &gt; output.mp4
-curl -F "file=@input.avi" HOST:PORT/convert/video/to/mp4 &gt; output.mp4
-curl -F "file=@input.mkv" HOST:PORT/convert/video/to/mp4 &gt; output.mp4</code></pre></div>
-  </div>
-</details>
 
 <!-- ══════════════════════════════════════════════════════ CONVERT IMAGE JPG -->
 <details>
@@ -1192,13 +1175,279 @@ curl \
   </div>
 </details>
 
+<!-- ══════════════════════════════════════════════════════ CONVERT VIDEO -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/video</span>
+    <span class="s-desc">Transcodificação profissional de vídeo</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Converte qualquer vídeo suportado pelo FFmpeg para qualquer outro container, com controle total sobre resolução, orientação, resize/fundo, codec/qualidade/preset/fps/color space/HDR/rotação/flip de vídeo, codec/bitrate/canais/sample rate/remoção de áudio e metadata — tudo via JSON, sem precisar conhecer flags do FFmpeg. Substitui o antigo <code>/convert/video/to/mp4</code> (fixo, sem opções).</p>
+
+    <div class="label">Fontes de entrada (escolha exatamente uma)</div>
+    <table>
+      <thead><tr><th>Fonte</th><th>Como enviar</th></tr></thead>
+      <tbody>
+        <tr><td><code>video</code></td><td>arquivo multipart</td></tr>
+        <tr><td><code>base64</code></td><td>texto (multipart) ou chave JSON raiz — aceita <code>data:video/mp4;base64,...</code> ou string pura</td></tr>
+        <tr><td><code>url</code></td><td>texto (multipart) ou chave JSON raiz — baixa de uma URL http/https</td></tr>
+        <tr><td><code>localFile</code></td><td>texto (multipart) ou chave JSON raiz — caminho relativo à pasta <code>uploads/</code> (volume Docker compartilhado, ex. com n8n)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">Dois formatos de request no mesmo path: <code>multipart/form-data</code> (fonte + campo texto <code>config</code> com o JSON abaixo + campo opcional <code>backgroundImage</code>) ou <code>application/json</code> (o corpo <strong>é</strong> o config, com a fonte como chave irmã no nível raiz). Todos os campos do config são opcionais — sem config, converte para MP4/H.264/CRF20/preset medium/AAC 192k preservando o resto do vídeo original.</div>
+
+    <div class="label">Estrutura do config JSON</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "format": "mp4",
+  "resolution": {
+    "preset": "1080p",
+    "orientation": "horizontal",
+    "custom": { "width": 1600, "height": 900 },
+    "resizeMode": "contain",
+    "keepAspectRatio": true,
+    "background": { "mode": "color", "color": "#000000", "strength": 20, "image": { "url": "https://…" } }
+  },
+  "video": {
+    "codec": "h264",
+    "quality": { "mode": "crf", "value": 20 },
+    "preset": "medium",
+    "fps": 30,
+    "colorSpace": "bt709",
+    "hdr": "auto",
+    "rotation": "auto",
+    "flip": "none"
+  },
+  "audio": { "codec": "aac", "bitrate": "192k", "channels": 2, "sampleRate": 48000, "remove": false },
+  "metadata": { "mode": "copy" }
+}</code></pre></div>
+
+    <div class="label">format — container de saída</div>
+    <p><code>mp4</code>, <code>mov</code>, <code>mkv</code>, <code>avi</code>, <code>webm</code>, <code>flv</code>, <code>wmv</code>, <code>mpeg</code>, <code>mpg</code>, <code>ts</code>, <code>m2ts</code>, <code>mts</code>, <code>3gp</code>, <code>ogv</code>, <code>gif</code>, <code>apng</code>, <code>nut</code>, <code>asf</code>, <code>vob</code>, <code>dv</code>, <code>f4v</code>, <code>mxf</code>. Padrão: <code>mp4</code>. A compatibilidade codec×container é validada automaticamente (erro amigável se incompatível).</p>
+    <div class="note"><code>gif</code>/<code>apng</code>/<code>dv</code> forçam seu próprio codec de vídeo, ignorando <code>video.codec</code> (aviso, não erro); <code>gif</code>/<code>apng</code> sempre removem áudio. Containers menos comuns (<code>wmv</code>, <code>asf</code>, <code>mpeg</code>, <code>mpg</code>, <code>vob</code>, <code>ogv</code>, <code>nut</code>, <code>mxf</code>, <code>dv</code>, <code>f4v</code>) têm suporte best-effort no FFmpeg.</div>
+
+    <div class="label">resolution — preset, orientação, resize e fundo</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>preset</code></td><td><code>original</code>, <code>480p</code>…<code>2160p</code>, <code>custom</code></td><td><code>original</code></td><td><code>custom</code> exige <code>custom.width</code>/<code>custom.height</code></td></tr>
+        <tr><td><code>orientation</code></td><td><code>horizontal</code>, <code>vertical</code></td><td><code>horizontal</code></td><td>Troca largura/altura do preset. Ignorado com <code>preset="custom"</code></td></tr>
+        <tr><td><code>resizeMode</code></td><td><code>contain</code>, <code>cover</code>, <code>stretch</code>, <code>fitWidth</code>, <code>fitHeight</code>, <code>original</code></td><td><code>contain</code></td><td>Estilo <em>object-fit</em> do CSS. <code>original</code> força não escalar mesmo com um preset definido</td></tr>
+        <tr><td><code>keepAspectRatio</code></td><td><code>true</code>/<code>false</code></td><td><code>true</code></td><td><code>false</code> força <code>stretch</code> mesmo com <code>contain</code>/<code>cover</code></td></tr>
+        <tr><td><code>background.mode</code></td><td><code>color</code>, <code>blur</code>, <code>image</code></td><td><code>color</code></td><td>Só se aplica com <code>resizeMode="contain"</code></td></tr>
+        <tr><td><code>background.color</code></td><td>hex</td><td><code>#000000</code></td><td>Usado quando <code>mode="color"</code></td></tr>
+        <tr><td><code>background.strength</code></td><td><code>0</code>–<code>100</code></td><td><code>20</code></td><td>Intensidade do blur quando <code>mode="blur"</code></td></tr>
+        <tr><td><code>background.image</code></td><td><code>{base64|url|localFile}</code></td><td>—</td><td>Usado quando <code>mode="image"</code> (ou envie o arquivo no campo multipart <code>backgroundImage</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">video — codec, qualidade, preset, fps, color space, HDR, rotação, flip</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>codec</code></td><td><code>h264</code>, <code>hevc</code>, <code>av1</code>, <code>vp9</code>, <code>mpeg4</code>, <code>prores</code>, <code>copy</code></td><td><code>h264</code></td><td><code>copy</code> só é usado quando pedido e nunca combinado com algo que force reencode — a combinação retorna erro claro em vez de ser ignorada silenciosamente</td></tr>
+        <tr><td><code>quality</code> (<code>mode="crf"</code>)</td><td><code>{"mode":"crf","value":0-51}</code> (0–63 em vp9/av1)</td><td><code>crf 20</code></td><td>Qualidade constante. Não se aplica a <code>prores</code>/<code>copy</code></td></tr>
+        <tr><td><code>quality</code> (<code>mode="bitrate"</code>)</td><td><code>{"mode":"bitrate","value":"8M"}</code></td><td>—</td><td>Bitrate de vídeo fixo</td></tr>
+        <tr><td><code>quality</code> (<code>mode="maxSize"</code>)</td><td><code>{"mode":"maxSize","value":50}</code></td><td>—</td><td>Tamanho <strong>máximo do arquivo final</strong>, em MB (ex: <code>50</code> → ≈50MB, qualquer que seja o tamanho de entrada). O bitrate necessário é calculado automaticamente a partir da duração do vídeo (com ~5% de margem) — não precisa calcular bitrate manualmente. É um teto de melhor esforço: se o valor pedido for inviável para a duração do vídeo, usa o bitrate mínimo viável e avisa em <code>X-Warnings</code></td></tr>
+        <tr><td><code>preset</code></td><td><code>ultrafast</code>…<code>veryslow</code></td><td><code>medium</code></td><td>Mapeado automaticamente por família de codec (x264/x265 direto; vp9/av1 em escala própria)</td></tr>
+        <tr><td><code>fps</code></td><td><code>source</code>, <code>24</code>, <code>25</code>, <code>30</code>, <code>50</code>, <code>60</code></td><td><code>source</code></td><td><code>source</code> preserva o FPS original</td></tr>
+        <tr><td><code>colorSpace</code></td><td><code>source</code>, <code>bt601</code>, <code>bt709</code>, <code>bt2020</code></td><td><code>source</code></td><td>—</td></tr>
+        <tr><td><code>hdr</code></td><td><code>auto</code>, <code>keep</code>, <code>remove</code></td><td><code>auto</code></td><td><code>auto</code> mantém HDR exceto em containers sem suporte real, onde converte para SDR bt709. <code>remove</code> sempre tonemap para SDR (requer FFmpeg com <code>zscale</code>)</td></tr>
+        <tr><td><code>rotation</code></td><td><code>auto</code>, <code>0</code>, <code>90</code>, <code>180</code>, <code>270</code></td><td><code>auto</code></td><td>—</td></tr>
+        <tr><td><code>flip</code></td><td><code>none</code>, <code>horizontal</code>, <code>vertical</code>, <code>both</code></td><td><code>none</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">audio e metadata</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>audio.codec</code></td><td><code>aac</code>, <code>mp3</code>, <code>opus</code>, <code>flac</code>, <code>pcm</code>, <code>copy</code></td><td><code>aac</code></td><td>—</td></tr>
+        <tr><td><code>audio.bitrate</code></td><td>ex. <code>"192k"</code></td><td><code>192k</code></td><td>Só se aplica a codecs com perdas (aac/mp3/opus)</td></tr>
+        <tr><td><code>audio.channels</code></td><td><code>1</code>, <code>2</code>, <code>6</code>, <code>8</code></td><td>—</td><td>Incompatível com <code>codec="copy"</code></td></tr>
+        <tr><td><code>audio.sampleRate</code></td><td><code>22050</code>…<code>96000</code></td><td>—</td><td>Incompatível com <code>codec="copy"</code></td></tr>
+        <tr><td><code>audio.remove</code></td><td><code>true</code>/<code>false</code></td><td><code>false</code></td><td><code>true</code> remove a trilha de áudio inteira</td></tr>
+        <tr><td><code>metadata.mode</code></td><td><code>copy</code>, <code>remove</code></td><td><code>copy</code></td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">Headers de resposta</div>
+    <p>O corpo da resposta é o arquivo convertido (mesmo comportamento de download dos outros endpoints de <code>/convert</code>). Metadados vêm nos headers: <code>X-Original-Format</code>, <code>X-Original-Resolution</code>, <code>X-Output-Format</code>, <code>X-Output-Resolution</code>, <code>X-Video-Codec</code>, <code>X-Audio-Codec</code>, <code>X-Output-Fps</code>, <code>X-Output-Duration</code>, <code>X-Warnings</code> (array JSON).</p>
+
+    <div class="label">Exemplos</div>
+
+    <div class="sub">
+      <h3>Sem config — defaults inteligentes</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "video=@input.mov" HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>WebM (VP9 + Opus)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"format":"webm","video":{"codec":"vp9"},"audio":{"codec":"opus"}}' \
+  HOST:PORT/convert/video &gt; output.webm</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>1080p vertical (Reels/Shorts), cover</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"1080p","orientation":"vertical","resizeMode":"cover"}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Mudar SÓ a resolução (720p), resto no padrão inteligente</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"720p"}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Mudar SÓ a resolução, para um tamanho customizado</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"custom","custom":{"width":1280,"height":720}}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Resolução custom com fundo desfocado</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"custom","custom":{"width":1600,"height":900},"background":{"mode":"blur","strength":30}}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fixar 30fps, bt709, remover HDR</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@hdr_input.mov" \
+  -F 'config={"video":{"fps":30,"colorSpace":"bt709","hdr":"remove"}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Remover áudio</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"audio":{"remove":true}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Reduzir qualidade/tamanho de forma genérica (CRF maior)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"video":{"quality":{"mode":"crf","value":32}}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Limitar o TAMANHO MÁXIMO do arquivo final (ex: 300MB → ~50MB)</h3>
+      <p>O bitrate de vídeo necessário para caber no tamanho pedido é calculado automaticamente a partir da duração do vídeo — não é preciso calcular bitrate manualmente.</p>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"format":"mp4","video":{"quality":{"mode":"maxSize","value":50}}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>codec "copy" — troca de container sem reencode</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mkv" \
+  -F 'config={"format":"mp4","video":{"codec":"copy"},"audio":{"codec":"copy"}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fonte: URL remota (JSON, sem upload)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/input.mp4","format":"mkv","video":{"codec":"hevc"}}' \
+  HOST:PORT/convert/video &gt; output.mkv</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fonte: base64 (JSON)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -H "Content-Type: application/json" \
+  -d '{"base64":"'"$(base64 -w0 input.mp4)"'","resolution":{"preset":"720p"}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fonte: arquivo local (volume uploads/ compartilhado)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -H "Content-Type: application/json" \
+  -d '{"localFile":"clip.mp4","format":"gif","resolution":{"preset":"480p"}}' \
+  HOST:PORT/convert/video &gt; output.gif</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Exemplo n8n — multipart com binário</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "method": "POST",
+  "url": "http://HOST:PORT/convert/video",
+  "sendBody": true,
+  "contentType": "multipart-form-data",
+  "bodyParameters": {
+    "parameters": [
+      { "name": "video",  "value": "={{ $binary.data }}", "parameterType": "formBinaryData" },
+      {
+        "name": "config",
+        "value": "={{ JSON.stringify({ format: 'mp4', resolution: { preset: '1080p', orientation: 'vertical' }, video: { codec: 'h264', fps: 30 } }) }}",
+        "parameterType": "formData"
+      }
+    ]
+  },
+  "options": { "response": { "response": { "responseFormat": "file" } } }
+}</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Exemplo n8n — JSON com fonte por URL</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "method": "POST",
+  "url": "http://HOST:PORT/convert/video",
+  "sendBody": true,
+  "contentType": "json",
+  "jsonBody": "={{ JSON.stringify({ url: $json.videoUrl, format: 'mp4', audio: { remove: true } }) }}",
+  "options": { "response": { "response": { "responseFormat": "file" } } }
+}</code></pre></div>
+    </div>
+
+  </div>
+</details>
+
 <!-- ══════════════════════════════════════════════════════ FOOTER -->
 <div class="footer-section" style="margin-top:32px">
   <div class="label">Parâmetros globais</div>
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:8px">
     <p>Por padrão, o arquivo gerado é apagado do servidor após o download. Para manter, use <code>?delete=no</code> em qualquer endpoint de download.</p>
     <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<pre><code>curl -F "file=@input.mov" HOST:PORT/convert/video/to/mp4?delete=no &gt; output.mp4</code></pre></div>
+<pre><code>curl -F "video=@input.mov" HOST:PORT/convert/video?delete=no &gt; output.mp4</code></pre></div>
   </div>
 
   <div class="label">Variáveis de ambiente</div>
@@ -1210,6 +1459,9 @@ curl \
         <tr><td><code>FILE_SIZE_LIMIT_BYTES</code></td><td><code>536870912</code></td><td>Tamanho máximo de upload (padrão = 512 MB)</td></tr>
         <tr><td><code>KEEP_ALL_FILES</code></td><td><code>false</code></td><td>Se <code>true</code>, não apaga arquivos temporários do <code>/tmp</code></td></tr>
         <tr><td><code>EXTERNAL_PORT</code></td><td>—</td><td>Porta externa (Docker/K8s) usada nas URLs de download de frames</td></tr>
+        <tr><td><code>UPLOADS_DIR</code></td><td><code>uploads/</code> no diretório de trabalho</td><td>Pasta base para a fonte <code>localFile</code> de <code>/convert/video</code> (montada como volume — ver <code>docker-compose.yml</code>)</td></tr>
+        <tr><td><code>URL_FETCH_TIMEOUT_MS</code></td><td><code>30000</code></td><td>Timeout ao baixar a fonte <code>url</code> de <code>/convert/video</code></td></tr>
+        <tr><td><code>URL_MAX_REDIRECTS</code></td><td><code>5</code></td><td>Máximo de redirects seguidos ao baixar a fonte <code>url</code></td></tr>
       </tbody>
     </table>
   </div>

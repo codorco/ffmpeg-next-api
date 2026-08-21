@@ -6,9 +6,16 @@ services:
     ports:
       - "9025:3000"
     volumes:
-      - ./uploads:/usr/src/app/uploads
+      - ./uploads:/home/ffmpgapi/uploads
     networks:
       - automacao_network
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 networks:
   automacao_network:

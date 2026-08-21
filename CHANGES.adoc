@@ -1,13 +1,23 @@
-=== 0.3
+=== 0.4 (2026-08-20)
 
-* Added EXTERNAL_PORT env variable.
+* Replaced `POST /convert/video/to/mp4` with `POST /convert/video`: full control over container, resolution/orientation/resize-mode/background, video codec/quality/preset/fps/color-space/HDR/rotation/flip, audio codec/bitrate/channels/sample-rate/removal, and metadata.
+* Added `video.quality.mode="maxSize"`: targets a maximum output file size (MB) and computes the required video bitrate automatically from the source duration, instead of requiring a manual CRF/bitrate value.
+* Added support for 4 input sources on `POST /convert/video`: multipart upload, base64, remote URL, and local file (shared `uploads/` volume).
+* Fixed the `uploads/` Docker volume mount, which previously pointed at a path outside the running container's working directory.
 
-=== 0.2
+=== 0.3 (2026-06-29)
 
-* Added extract images and audio endpoints.
-* Added probe endpoint.
-* Major refactoring.
+* Added `POST /video/add/audio`: mix or attach up to 5 audio tracks onto a video, with per-track volume/trim/delay/loop/fade/playback-rate, ducking, crossfade, normalization, and `afterVideo` extensions (freeze/color/image) when audio outlasts the video.
 
-=== 0.1
+=== 0.2 (2026-06-28)
 
-* Initial version.
+* Added `POST /image/to/scroll-video`: generates a smooth scrolling video from a tall image (e.g. a webpage screenshot).
+* Added `POST /image/to/images-to-video`: builds a slideshow video from multiple images with configurable scaling and transitions.
+* Added `POST /subtitle/ass`: burns or soft-attaches subtitles (ASS/SRT/plain text) with full styling, animated effects, and karaoke highlighting.
+* Added bundled fonts (Bebas Neue, Open Sans) and custom font upload support for `/subtitle/ass`.
+* Rewrote `/` into a rich, self-documenting HTML endpoint listing.
+
+=== 0.1 (2026-06-27)
+
+* Initial fork of https://github.com/samisalkosuo/ffmpeg-api.
+* Inherited from upstream at fork time: convert audio/video/image to mp3/wav/mp4/jpg, extract images/audio from video, probe endpoint, and the `FILE_SIZE_LIMIT_BYTES` / `KEEP_ALL_FILES` / `EXTERNAL_PORT` environment variables.

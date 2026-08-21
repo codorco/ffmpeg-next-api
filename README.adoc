@@ -78,6 +78,207 @@ curl \
   HOST:PORT/video/add/audio > output.mp4
 ----
 
+=== POST /convert/video
+
+Professional, format-agnostic video transcoding. Convert to any FFmpeg-supported container, and optionally change resolution/orientation/resize-mode/background, video codec/quality/preset/fps/color-space/HDR/rotation/flip, audio codec/bitrate/channels/sample-rate (or remove audio entirely), and metadata — all through JSON, no FFmpeg flags required. Replaces the old, fixed `POST /convert/video/to/mp4`.
+
+Accepts **4 input sources** (exactly one per request):
+
+* `video` — multipart file upload
+* `base64` — base64 string (plain, or a `data:video/mp4;base64,...` URI)
+* `url` — fetches the video from a remote http/https URL
+* `localFile` — a path relative to the `uploads/` directory (mounted as a Docker volume — see below), for sharing files with other containers such as n8n without an HTTP upload
+
+Two request shapes work against the same path:
+
+* `multipart/form-data`: the source above as a file/field, plus an optional `config` text field (JSON, same shape as the JSON body below), plus an optional `backgroundImage` file field (only used with `resolution.background.mode="image"`).
+* `application/json`: the body *is* the config object, with the source as a sibling top-level key (`base64`, `url`, or `localFile`).
+
+All config fields are optional — an empty request converts to MP4, H.264/CRF 20/preset medium, AAC 192k, preserving the source resolution, fps, color space, and orientation as closely as possible.
+
+.config JSON — every field optional
+----
+{
+  "format": "mp4",
+  "resolution": {
+    "preset": "1080p",
+    "orientation": "horizontal",
+    "custom": { "width": 1600, "height": 900 },
+    "resizeMode": "contain",
+    "keepAspectRatio": true,
+    "background": { "mode": "color", "color": "#000000", "strength": 20, "image": { "url": "https://…" } }
+  },
+  "video": {
+    "codec": "h264",
+    "quality": { "mode": "crf", "value": 20 },
+    "preset": "medium",
+    "fps": 30,
+    "colorSpace": "bt709",
+    "hdr": "auto",
+    "rotation": "auto",
+    "flip": "none"
+  },
+  "audio": { "codec": "aac", "bitrate": "192k", "channels": 2, "sampleRate": 48000, "remove": false },
+  "metadata": { "mode": "copy" }
+}
+----
+
+**format** — output container. One of: `mp4`, `mov`, `mkv`, `avi`, `webm`, `flv`, `wmv`, `mpeg`, `mpg`, `ts`, `m2ts`, `mts`, `3gp`, `ogv`, `gif`, `apng`, `nut`, `asf`, `vob`, `dv`, `f4v`, `mxf`. Default `mp4`. Codec compatibility per container is validated automatically (friendly error if incompatible); `gif`/`apng`/`dv` force their own codec regardless of `video.codec` (warning returned, not an error), and `gif`/`apng` always drop audio. Less common containers (`wmv`, `asf`, `mpeg`, `mpg`, `vob`, `ogv`, `nut`, `mxf`, `dv`, `f4v`) are best-effort — FFmpeg's support for them is narrower than for `mp4`/`mkv`/`webm`.
+
+**resolution.preset** — `original` (default, no scaling), `480p`, `720p`, `1080p`, `1440p`, `2160p`, or `custom` (requires `resolution.custom.width`/`height`, or `width`/`height` directly under `resolution`).
+
+**resolution.orientation** — `horizontal` (default) or `vertical`; swaps width/height of the chosen preset. Ignored (with a warning) when `preset="custom"`.
+
+**resolution.resizeMode** — CSS `object-fit`-style behavior when the source aspect ratio doesn't match the target: `contain` (default, letterbox/pillarbox with `background`), `cover` (crop to fill), `stretch` (distort to fill), `fitWidth` (fixed width, auto height), `fitHeight` (fixed height, auto width), `original` (force no scaling regardless of `preset`).
+
+**resolution.keepAspectRatio** — default `true`. Setting it to `false` forces `stretch` behavior even when `resizeMode` is `contain`/`cover`.
+
+**resolution.background** — only relevant for `resizeMode="contain"`. `mode`: `color` (default, `color` hex, default `#000000`), `blur` (`strength` 0–100), or `image` (`image`: `{base64|url|localFile}`, or multipart field `backgroundImage`).
+
+**video.codec** — `h264` (default), `hevc`, `av1`, `vp9`, `mpeg4`, `prores`, `copy`. `copy` is only used when explicitly requested, and only when nothing else forces a re-encode (resolution change, rotation/flip, fps change, colorSpace change, `hdr:"remove"`) — combining `copy` with any of those returns a clear validation error instead of silently ignoring your request.
+
+**video.quality** — one of three modes, not applicable to `prores`/`copy`:
+
+* `{"mode":"crf","value":0-51}` (0-63 for `vp9`/`av1`) — constant quality. **Default** `{"mode":"crf","value":20}`.
+* `{"mode":"bitrate","value":"8M"}` — fixed video bitrate.
+* `{"mode":"maxSize","value":50}` — target a maximum **output file size**, in megabytes (e.g. `50` → ≈50MB regardless of input size). The video bitrate is computed automatically from the probed source duration, minus an estimate of the audio track's share of the budget — no need to calculate bitrates by hand. Treated as a best-effort ceiling (~5% safety margin), not an exact guarantee — a request unrealistically low for the video's duration falls back to a minimum viable bitrate (with a warning in `X-Warnings`) rather than producing a broken file.
+
+**video.preset** — encoder speed/efficiency preset: `ultrafast` … `veryslow`. Default `medium`. Mapped automatically per codec family (x264/x265 use it directly; vp9/av1 use their own numeric scales).
+
+**video.fps** — `source` (default, preserves original) or `24`/`25`/`30`/`50`/`60`.
+
+**video.colorSpace** — `source` (default), `bt601`, `bt709`, `bt2020`.
+
+**video.hdr** — `auto` (default: keeps HDR unless the target container has essentially no real HDR support, in which case it tonemaps down to SDR bt709), `keep`, `remove` (always tonemaps to SDR bt709 — requires FFmpeg built with `zscale`/libzimg).
+
+**video.rotation** — `auto` (default), `0`, `90`, `180`, `270`. **video.flip** — `none` (default), `horizontal`, `vertical`, `both`.
+
+**audio.codec** — `aac` (default), `mp3`, `opus`, `flac`, `pcm`, `copy`. **audio.bitrate** — e.g. `"192k"` (default for lossy codecs). **audio.channels** — `1`/`2`/`6`/`8`. **audio.sampleRate** — `22050`/`32000`/`44100`/`48000`/`96000`. **audio.remove** — `true` strips audio entirely.
+
+**metadata.mode** — `copy` (default) or `remove`.
+
+The response is the converted file (same download behavior as every other `/convert/*` endpoint), plus informational headers: `X-Original-Format`, `X-Original-Resolution`, `X-Output-Format`, `X-Output-Resolution`, `X-Video-Codec`, `X-Audio-Codec`, `X-Output-Fps`, `X-Output-Duration`, `X-Warnings` (JSON array — e.g. when a codec was overridden by the container, or `copy` couldn't be honored).
+
+----
+# Defaults only — MP4, H.264, preserves the rest
+curl -F "video=@input.mov" HOST:PORT/convert/video > output.mp4
+
+# Convert to WebM (VP9 + Opus)
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"format":"webm","video":{"codec":"vp9"},"audio":{"codec":"opus"}}' \
+  HOST:PORT/convert/video > output.webm
+
+# 1080p vertical (reels/shorts), cover fit
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"1080p","orientation":"vertical","resizeMode":"cover"}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Change ONLY the resolution (720p), everything else stays at its smart default
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"720p"}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Change ONLY the resolution, to a custom size
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"custom","custom":{"width":1280,"height":720}}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Custom resolution, letterboxed with a blurred background
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"custom","custom":{"width":1600,"height":900},"background":{"mode":"blur","strength":30}}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Force 30fps, bt709, drop HDR to SDR
+curl \
+  -F "video=@hdr_input.mov" \
+  -F 'config={"video":{"fps":30,"colorSpace":"bt709","hdr":"remove"}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Remove audio entirely
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"audio":{"remove":true}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Reduce quality/size generically (higher CRF = smaller, lower quality)
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"video":{"quality":{"mode":"crf","value":32}}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Target a MAXIMUM output file size — e.g. a 300MB input capped at ~50MB.
+# The bitrate needed to hit that size is computed automatically from the
+# video's duration; no manual bitrate math required.
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"format":"mp4","video":{"quality":{"mode":"maxSize","value":50}}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Stream-copy both tracks into a different container (fast, no re-encode)
+curl \
+  -F "video=@input.mkv" \
+  -F 'config={"format":"mp4","video":{"codec":"copy"},"audio":{"codec":"copy"}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Source = remote URL, no file upload at all
+curl \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/input.mp4","format":"mkv","video":{"codec":"hevc"}}' \
+  HOST:PORT/convert/video > output.mkv
+
+# Source = base64 (JSON transport)
+curl \
+  -H "Content-Type: application/json" \
+  -d '{"base64":"'"$(base64 -w0 input.mp4)"'","resolution":{"preset":"720p"}}' \
+  HOST:PORT/convert/video > output.mp4
+
+# Source = file already inside the shared uploads/ volume
+curl \
+  -H "Content-Type: application/json" \
+  -d '{"localFile":"clip.mp4","format":"gif","resolution":{"preset":"480p"}}' \
+  HOST:PORT/convert/video > output.gif
+----
+
+n8n HTTP Request node (multipart, binary passthrough):
+
+----
+{
+  "method": "POST",
+  "url": "http://HOST:PORT/convert/video",
+  "sendBody": true,
+  "contentType": "multipart-form-data",
+  "bodyParameters": {
+    "parameters": [
+      { "name": "video",  "value": "={{ $binary.data }}", "parameterType": "formBinaryData" },
+      {
+        "name": "config",
+        "value": "={{ JSON.stringify({ format: 'mp4', resolution: { preset: '1080p', orientation: 'vertical' }, video: { codec: 'h264', fps: 30 } }) }}",
+        "parameterType": "formData"
+      }
+    ]
+  },
+  "options": { "response": { "response": { "responseFormat": "file" } } }
+}
+----
+
+n8n HTTP Request node (JSON body, source by URL — no binary handling needed):
+
+----
+{
+  "method": "POST",
+  "url": "http://HOST:PORT/convert/video",
+  "sendBody": true,
+  "contentType": "json",
+  "jsonBody": "={{ JSON.stringify({ url: $json.videoUrl, format: 'mp4', audio: { remove: true } }) }}",
+  "options": { "response": { "response": { "responseFormat": "file" } } }
+}
+----
+
 FFMPEG API is provided as Docker image for easy consumption.
 
 == Endpoints
@@ -86,7 +287,6 @@ FFMPEG API is provided as Docker image for easy consumption.
 * `GET /endpoints` - Service endpoints as JSON.
 * `POST /convert/audio/to/mp3` - Convert audio file in request body to mp3. Returns mp3-file.
 * `POST /convert/audio/to/wav` - Convert audio file in request body to wav. Returns wav-file.
-* `POST /convert/video/to/mp4` - Convert video file in request body to mp4. Returns mp4-file.
 * `POST /convert/image/to/jpg` - Convert image file to jpg. Returns jpg-file.
 * `POST /video/extract/audio` - Extract audio track from POSTed video file. Returns audio track as 1-channel wav-file.
 ** Query param: `mono=no` - Returns audio track, all channels.
@@ -128,6 +328,8 @@ FFMPEG API is provided as Docker image for easy consumption.
 ** `docker run -it --rm -p 3000:3000 -e KEEP_ALL_FILES=true kazhar/ffmpeg-api`
 * When running on Docker/Kubernetes, port binding can be different than default 3000. Use _EXTERNAL_PORT_ to set up external port in returned URLs in extracted images JSON:
 ** `docker run -it --rm -p 3001:3000 -e EXTERNAL_PORT=3001 kazhar/ffmpeg-api`
+* `POST /convert/video` with source `localFile` reads from the directory in _UPLOADS_DIR_ (default: `uploads/` inside the container's working directory — see `docker-compose.yml`, which mounts `./uploads` there).
+* `POST /convert/video` with source `url` uses _URL_FETCH_TIMEOUT_MS_ (default 30000) and _URL_MAX_REDIRECTS_ (default 5).
 
 
 == Usage
@@ -136,12 +338,10 @@ Input file to FFMPEG API can be anything that ffmpeg supports. See https://www.f
 
 === Convert
 
-Convert audio/video/image files using the API.
+Convert audio/image files using the API. For video, see `POST /convert/video` above — it replaces the old fixed `/convert/video/to/mp4` with full control over container/resolution/codec/audio/etc.
 
 * `curl -F "file=@input.wav" 127.0.0.1:3000/convert/audio/to/mp3  > output.mp3`
 * `curl -F "file=@input.m4a" 127.0.0.1:3000/convert/audio/to/wav  > output.wav`
-* `curl -F "file=@input.mov" 127.0.0.1:3000/convert/video/to/mp4  > output.mp4`
-* `curl -F "file=@input.mp4" 127.0.0.1:3000/convert/videp/to/mp4  > output.mp4`
 * `curl -F "file=@input.tiff" 127.0.0.1:3000/convert/image/to/jpg  > output.jpg`
 * `curl -F "file=@input.png" 127.0.0.1:3000/convert/image/to/jpg  > output.jpg`
 

@@ -24,13 +24,6 @@ router.post('/audio/to/wav', function (req, res,next) {
     return convert(req,res,next);
 });
 
-router.post('/video/to/mp4', function (req, res,next) {
-
-    res.locals.conversion="video";
-    res.locals.format="mp4";
-    return convert(req,res,next);
-});
-
 router.post('/image/to/jpg', function (req, res,next) {
 
     res.locals.conversion="image";
@@ -38,7 +31,7 @@ router.post('/image/to/jpg', function (req, res,next) {
     return convert(req,res,next);
 });
 
-// convert audio or video or image to mp3 or mp4 or jpg
+// convert audio or image to mp3/wav or jpg
 function convert(req,res,next) {
     let format = res.locals.format;
     let conversion = res.locals.conversion;
@@ -62,19 +55,6 @@ function convert(req,res,next) {
             ffmpegParams.outputOptions=['-codec:a pcm_s16le' ];
         }
     }
-    if (conversion == "video")
-    {
-        ffmpegParams.outputOptions=[
-            '-codec:v libx264',
-            '-profile:v high',
-            '-crf 18',
-            '-preset medium',
-            '-threads 8',
-            '-codec:a libfdk_aac',
-            '-b:a 192k',
-        ];
-    }
-
     let savedFile = res.locals.savedFile;
     let outputFile = savedFile + '-output.' + ffmpegParams.extension;
     logger.debug(`begin conversion from ${savedFile} to ${outputFile}`)

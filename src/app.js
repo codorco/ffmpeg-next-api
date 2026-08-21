@@ -31,6 +31,10 @@ app.use(upload);
 var convert = require('./routes/convert.js');
 app.use('/convert', convert);
 
+//route to convert video with full control over container/resolution/codec/audio/etc
+var convertVideo = require('./routes/convertvideo.js');
+app.use('/convert', convertVideo);
+
 //routes to extract images or audio from video
 var extract = require('./routes/extract.js');
 app.use('/video/extract', extract);

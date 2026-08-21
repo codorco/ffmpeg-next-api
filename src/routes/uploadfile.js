@@ -11,7 +11,7 @@ const logger = require('../utils/logger.js')
 router.use(function (req, res,next) {
     
     // Routes that manage their own multi-file upload bypass this middleware
-    const multiFileRoutes = ['/image/to/images-to-video', '/subtitle/ass', '/video/add/audio'];
+    const multiFileRoutes = ['/image/to/images-to-video', '/subtitle/ass', '/video/add/audio', '/convert/video'];
     if (req.method === 'POST' && multiFileRoutes.indexOf(req.path) !== -1) {
         return next();
     }

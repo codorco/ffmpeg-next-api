@@ -64,6 +64,11 @@ COPY --from=build /usr/src/app/ffmpegapi .
 COPY --from=build /usr/src/app/index.html .
 RUN chown ffmpgapi:ffmpgapi * && chmod 755 ffmpegapi
 
+# "uploads" is the base directory for the POST /convert/video "localFile" input
+# source. It's meant to be mounted as a volume (see docker-compose.yml) so files
+# can be shared with other containers (e.g. n8n) without an HTTP upload.
+RUN mkdir -p /home/ffmpgapi/uploads && chown ffmpgapi:ffmpgapi /home/ffmpgapi/uploads
+
 EXPOSE 3000
 
 # Change user
