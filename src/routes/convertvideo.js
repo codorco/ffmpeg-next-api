@@ -17,6 +17,7 @@ const constants     = require('../constants.js');
 const logger        = require('../utils/logger.js');
 const utils         = require('../utils/utils.js');
 const inputresolver = require('../utils/inputresolver.js');
+const bitratebudget = require('../utils/bitratebudget.js');
 
 const router = express.Router();
 
@@ -45,7 +46,7 @@ const X264_X265_PRESETS = ['ultrafast','superfast','veryfast','faster','fast','m
 const VP9_SPEED_MAP      = { ultrafast:8, superfast:7, veryfast:6, faster:5, fast:4, medium:3, slow:2, slower:1, veryslow:0 };
 const AV1_PRESET_MAP     = { ultrafast:12, superfast:11, veryfast:10, faster:9, fast:8, medium:6, slow:4, slower:3, veryslow:2 };
 
-const RESOLUTION_PRESETS = { // base = horizontal (16:9); swapped for orientation:"vertical"
+const RESOLUTION_PRESETS = { // base = horizontal (16:9); swapped when orientation resolves to "vertical" (see computeTargetDimensions)
     '480p':  { width: 854,  height: 480  },
     '720p':  { width: 1280, height: 720  },
     '1080p': { width: 1920, height: 1080 },
@@ -140,9 +141,9 @@ function validateAndNormalize(raw) {
     if (!['original','480p','720p','1080p','1440p','2160p','custom'].includes(preset)) {
         errors.push(`resolution.preset "${preset}" inválido. Use: original, 480p, 720p, 1080p, 1440p, 2160p ou custom`);
     }
-    let orientation = rawRes.orientation || 'horizontal';
-    if (!['horizontal','vertical'].includes(orientation)) {
-        errors.push(`resolution.orientation "${orientation}" inválido. Use "horizontal" ou "vertical"`);
+    let orientation = rawRes.orientation || 'auto';
+    if (!['horizontal','vertical','auto'].includes(orientation)) {
+        errors.push(`resolution.orientation "${orientation}" inválido. Use "horizontal", "vertical" ou "auto"`);
     }
     if (preset === 'custom' && rawRes.orientation) {
         warnings.push('resolution.orientation é ignorado quando preset="custom" (use width/height diretamente)');
@@ -370,6 +371,9 @@ function validateAndNormalize(raw) {
 
 // Resolves preset+orientation+custom into concrete {width,height}, or null when
 // no scaling should happen at all (preset "original" / resizeMode "original").
+// orientation:"auto" (the default) keeps the source's own portrait/landscape
+// shape instead of forcing every preset into landscape — a 9:16 source asking
+// for "720p" gets 720x1280, not 1280x720 with the sides padded/cropped away.
 function computeTargetDimensions(cfg, sourceW, sourceH) {
     if (cfg.resolution.resizeMode === 'original' || cfg.resolution.preset === 'original') {
         return null;
@@ -378,7 +382,8 @@ function computeTargetDimensions(cfg, sourceW, sourceH) {
         return { width: evenify(cfg.resolution.customWidth), height: evenify(cfg.resolution.customHeight) };
     }
     const base = RESOLUTION_PRESETS[cfg.resolution.preset];
-    const vertical = cfg.resolution.orientation === 'vertical';
+    const orientation = cfg.resolution.orientation;
+    const vertical = orientation === 'vertical' || (orientation === 'auto' && sourceH > sourceW);
     return {
         width:  evenify(vertical ? base.height : base.width),
         height: evenify(vertical ? base.width  : base.height),
@@ -536,8 +541,7 @@ function resolveMaxSizeQuality(cfg, sourceDuration, hasAudio, audioStream, warni
         return;
     }
 
-    const targetBytes    = cfg.video.quality.targetMegabytes * 1000000; // MB → bytes (decimal)
-    const totalBudgetBps  = (targetBytes * 8 * MAXSIZE_MARGIN) / sourceDuration;
+    const totalBudgetBps  = bitratebudget.computeBudgetBps(cfg.video.quality.targetMegabytes, sourceDuration, MAXSIZE_MARGIN);
     const audioBps        = hasAudio ? estimateAudioBitrateBps(cfg, audioStream, warnings) : 0;
     let videoBps           = Math.round(totalBudgetBps - audioBps);
 

@@ -135,8 +135,6 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge get">GET</span></td><td><code>/</code></td><td>Esta documentação</td></tr>
       <tr><td><span class="badge get">GET</span></td><td><code>/endpoints</code></td><td>Lista todos os endpoints em JSON</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/probe</code></td><td>Metadados de qualquer arquivo de mídia</td></tr>
-      <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio/to/mp3</code></td><td>Converte áudio para MP3</td></tr>
-      <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio/to/wav</code></td><td>Converte áudio para WAV</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/image/to/jpg</code></td><td>Converte imagem para JPG</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/audio</code></td><td>Extrai faixa de áudio de um vídeo</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/images</code></td><td>Extrai frames de um vídeo como PNG</td></tr>
@@ -146,6 +144,7 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge post">POST</span></td><td><code>/subtitle/ass</code></td><td>Aplica legenda com estilos, efeitos e karaoke</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/add/audio</code></td><td>Adiciona e mistura trilhas de áudio em um vídeo</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/video</code></td><td>Transcodificação profissional de vídeo (container, resolução, codecs, HDR, etc.)</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio</code></td><td>Converte áudio para qualquer formato suportado, com controle de qualidade/tamanho</td></tr>
     </tbody>
   </table>
 </section>
@@ -175,39 +174,6 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
   </div>
 </details>
 
-<!-- ══════════════════════════════════════════════════════ CONVERT AUDIO MP3 -->
-<details>
-  <summary>
-    <span class="badge post">POST</span>
-    <span class="s-path">/convert/audio/to/mp3</span>
-    <span class="s-desc">Converte áudio para MP3</span>
-    <span class="arrow">&#9656;</span>
-  </summary>
-  <div class="body">
-    <p>Codec: <code>libmp3lame</code></p>
-    <div class="label">Exemplos</div>
-    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<pre><code>curl -F "file=@input.wav" HOST:PORT/convert/audio/to/mp3 &gt; output.mp3
-curl -F "file=@input.m4a" HOST:PORT/convert/audio/to/mp3 &gt; output.mp3</code></pre></div>
-  </div>
-</details>
-
-<!-- ══════════════════════════════════════════════════════ CONVERT AUDIO WAV -->
-<details>
-  <summary>
-    <span class="badge post">POST</span>
-    <span class="s-path">/convert/audio/to/wav</span>
-    <span class="s-desc">Converte áudio para WAV</span>
-    <span class="arrow">&#9656;</span>
-  </summary>
-  <div class="body">
-    <p>Codec: <code>pcm_s16le</code></p>
-    <div class="label">Exemplos</div>
-    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<pre><code>curl -F "file=@input.mp3" HOST:PORT/convert/audio/to/wav &gt; output.wav
-curl -F "file=@input.m4a" HOST:PORT/convert/audio/to/wav &gt; output.wav</code></pre></div>
-  </div>
-</details>
 
 
 <!-- ══════════════════════════════════════════════════════ CONVERT IMAGE JPG -->
@@ -1205,7 +1171,7 @@ curl \
   "format": "mp4",
   "resolution": {
     "preset": "1080p",
-    "orientation": "horizontal",
+    "orientation": "auto",
     "custom": { "width": 1600, "height": 900 },
     "resizeMode": "contain",
     "keepAspectRatio": true,
@@ -1234,7 +1200,7 @@ curl \
       <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
       <tbody>
         <tr><td><code>preset</code></td><td><code>original</code>, <code>480p</code>…<code>2160p</code>, <code>custom</code></td><td><code>original</code></td><td><code>custom</code> exige <code>custom.width</code>/<code>custom.height</code></td></tr>
-        <tr><td><code>orientation</code></td><td><code>horizontal</code>, <code>vertical</code></td><td><code>horizontal</code></td><td>Troca largura/altura do preset. Ignorado com <code>preset="custom"</code></td></tr>
+        <tr><td><code>orientation</code></td><td><code>auto</code>, <code>horizontal</code>, <code>vertical</code></td><td><code>auto</code></td><td>Troca largura/altura do preset. <code>auto</code> detecta o formato (retrato/paisagem) do vídeo de origem — uma fonte 9:16 pedindo <code>"720p"</code> vira 720x1280, não 1280x720 com as laterais cortadas/preenchidas. Ignorado com <code>preset="custom"</code></td></tr>
         <tr><td><code>resizeMode</code></td><td><code>contain</code>, <code>cover</code>, <code>stretch</code>, <code>fitWidth</code>, <code>fitHeight</code>, <code>original</code></td><td><code>contain</code></td><td>Estilo <em>object-fit</em> do CSS. <code>original</code> força não escalar mesmo com um preset definido</td></tr>
         <tr><td><code>keepAspectRatio</code></td><td><code>true</code>/<code>false</code></td><td><code>true</code></td><td><code>false</code> força <code>stretch</code> mesmo com <code>contain</code>/<code>cover</code></td></tr>
         <tr><td><code>background.mode</code></td><td><code>color</code>, <code>blur</code>, <code>image</code></td><td><code>color</code></td><td>Só se aplica com <code>resizeMode="contain"</code></td></tr>
@@ -1368,6 +1334,16 @@ curl \
     </div>
 
     <div class="sub">
+      <h3>720p + tamanho máximo de 50MB na mesma requisição</h3>
+      <p><code>resolution.orientation</code> por padrão é <code>auto</code>, então uma fonte 9:16 continua 720x1280 (não vira 1280x720) — não é preciso informar orientation manualmente aqui.</p>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"720p"},"video":{"quality":{"mode":"maxSize","value":50}}}' \
+  HOST:PORT/convert/video &gt; output.mp4</code></pre></div>
+    </div>
+
+    <div class="sub">
       <h3>codec "copy" — troca de container sem reencode</h3>
       <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
 <pre><code>curl \
@@ -1436,6 +1412,78 @@ curl \
   "jsonBody": "={{ JSON.stringify({ url: $json.videoUrl, format: 'mp4', audio: { remove: true } }) }}",
   "options": { "response": { "response": { "responseFormat": "file" } } }
 }</code></pre></div>
+    </div>
+
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ CONVERT AUDIO -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/audio</span>
+    <span class="s-desc">Converte áudio para qualquer formato suportado</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Converte qualquer áudio suportado pelo FFmpeg para qualquer outro formato de saída, com controle de qualidade ou tamanho máximo do arquivo. Substitui os antigos <code>/convert/audio/to/mp3</code> e <code>/convert/audio/to/wav</code> (fixos, sem opções). Mesmas fontes de entrada, formatos de request e convenção de resposta de <code>/convert/video</code> (veja acima): multipart (arquivo <code>audio</code>, ou campos texto <code>base64</code>/<code>url</code>/<code>localFile</code> + <code>config</code>) ou <code>application/json</code>.</p>
+
+    <div class="label">format — formato de saída</div>
+    <p><code>mp3</code>, <code>wav</code>, <code>aac</code>, <code>m4a</code>, <code>flac</code>, <code>ogg</code>, <code>opus</code>, <code>wma</code>, <code>aiff</code>. Padrão: <code>mp3</code>. O codec é definido automaticamente pelo formato — não existe um campo de codec separado.</p>
+
+    <div class="label">quality — qualidade / tamanho</div>
+    <table>
+      <thead><tr><th>Modo</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>default</code></td><td><code>{"mode":"default"}</code> (ou omitir <code>quality</code>)</td><td>Padrão — sem redução de qualidade. Usa 192k (padrão desta API) para formatos com perdas, ou encode sem perdas para <code>wav</code>/<code>flac</code>/<code>aiff</code></td></tr>
+        <tr><td><code>reduce</code></td><td><code>{"mode":"reduce","value":40}</code></td><td>Reduz o bitrate em X% (1–99) em relação aos 192k de referência. Não se aplica a formatos sem perdas</td></tr>
+        <tr><td><code>maxSize</code></td><td><code>{"mode":"maxSize","value":10}</code></td><td>Tamanho <strong>máximo do arquivo final</strong>, em MB — mesmo cálculo automático de bitrate usado em <code>video.quality.mode="maxSize"</code> do <code>/convert/video</code>. Não se aplica a formatos sem perdas</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">Headers de resposta</div>
+    <p><code>X-Original-Format</code>, <code>X-Output-Format</code>, <code>X-Audio-Codec</code>, <code>X-Audio-Quality</code>, <code>X-Output-Duration</code>, <code>X-Warnings</code>.</p>
+
+    <div class="label">Exemplos</div>
+
+    <div class="sub">
+      <h3>Sem config — qualquer entrada para MP3, sem perda de qualidade</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "audio=@input.wav" HOST:PORT/convert/audio &gt; output.mp3</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Converter para um formato específico</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "audio=@input.mp3" -F 'config={"format":"flac"}' HOST:PORT/convert/audio &gt; output.flac
+curl -F "audio=@input.m4a" -F 'config={"format":"opus"}' HOST:PORT/convert/audio &gt; output.opus</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Reduzir qualidade/tamanho em 50%</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "audio=@input.wav" \
+  -F 'config={"format":"mp3","quality":{"mode":"reduce","value":50}}' \
+  HOST:PORT/convert/audio &gt; output.mp3</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Limitar o tamanho máximo do arquivo final (ex: podcast longo → 10MB)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -F "audio=@input.wav" \
+  -F 'config={"format":"aac","quality":{"mode":"maxSize","value":10}}' \
+  HOST:PORT/convert/audio &gt; output.aac</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fonte: URL remota (JSON, sem upload)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/input.wav","format":"mp3"}' \
+  HOST:PORT/convert/audio &gt; output.mp3</code></pre></div>
     </div>
 
   </div>

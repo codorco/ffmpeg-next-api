@@ -1,3 +1,9 @@
+=== 0.5 (2026-08-21)
+
+* Replaced `POST /convert/audio/to/mp3` and `POST /convert/audio/to/wav` with `POST /convert/audio`: converts any FFmpeg-supported audio input to any supported output format (`mp3`, `wav`, `aac`, `m4a`, `flac`, `ogg`, `opus`, `wma`, `aiff`), with the same 4 input sources and request/response conventions as `POST /convert/video`.
+* Added `quality.mode="default"/"reduce"/"maxSize"` on `POST /convert/audio`: no change by default, reduce bitrate by a percentage, or target a maximum output file size (MB) — reusing the same size-budget math as `video.quality.mode="maxSize"`.
+* `resolution.orientation` on `POST /convert/video` now defaults to `"auto"` (detects portrait vs. landscape from the source) instead of always assuming landscape — a 9:16 source asking for `"720p"` now gets 720x1280 instead of being padded into 1280x720.
+
 === 0.4 (2026-08-20)
 
 * Replaced `POST /convert/video/to/mp4` with `POST /convert/video`: full control over container, resolution/orientation/resize-mode/background, video codec/quality/preset/fps/color-space/HDR/rotation/flip, audio codec/bitrate/channels/sample-rate/removal, and metadata.

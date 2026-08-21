@@ -102,7 +102,7 @@ All config fields are optional — an empty request converts to MP4, H.264/CRF 2
   "format": "mp4",
   "resolution": {
     "preset": "1080p",
-    "orientation": "horizontal",
+    "orientation": "auto",
     "custom": { "width": 1600, "height": 900 },
     "resizeMode": "contain",
     "keepAspectRatio": true,
@@ -127,7 +127,7 @@ All config fields are optional — an empty request converts to MP4, H.264/CRF 2
 
 **resolution.preset** — `original` (default, no scaling), `480p`, `720p`, `1080p`, `1440p`, `2160p`, or `custom` (requires `resolution.custom.width`/`height`, or `width`/`height` directly under `resolution`).
 
-**resolution.orientation** — `horizontal` (default) or `vertical`; swaps width/height of the chosen preset. Ignored (with a warning) when `preset="custom"`.
+**resolution.orientation** — `auto` (default), `horizontal`, or `vertical`; swaps width/height of the chosen preset. `auto` detects the source's own portrait/landscape shape and matches it — a 9:16 source asking for `"720p"` gets 720x1280, not 1280x720 with the sides padded away. Ignored (with a warning) when `preset="custom"`.
 
 **resolution.resizeMode** — CSS `object-fit`-style behavior when the source aspect ratio doesn't match the target: `contain` (default, letterbox/pillarbox with `background`), `cover` (crop to fill), `stretch` (distort to fill), `fitWidth` (fixed width, auto height), `fitHeight` (fixed height, auto width), `original` (force no scaling regardless of `preset`).
 
@@ -219,6 +219,14 @@ curl \
   -F 'config={"format":"mp4","video":{"quality":{"mode":"maxSize","value":50}}}' \
   HOST:PORT/convert/video > output.mp4
 
+# Downscale to 720p AND cap the final file at 50MB in the same request.
+# resolution.orientation defaults to "auto", so a 9:16 source stays 720x1280
+# (not forced into 1280x720) — no need to set orientation explicitly here.
+curl \
+  -F "video=@input.mp4" \
+  -F 'config={"resolution":{"preset":"720p"},"video":{"quality":{"mode":"maxSize","value":50}}}' \
+  HOST:PORT/convert/video > output.mp4
+
 # Stream-copy both tracks into a different container (fast, no re-encode)
 curl \
   -F "video=@input.mkv" \
@@ -279,14 +287,53 @@ n8n HTTP Request node (JSON body, source by URL — no binary handling needed):
 }
 ----
 
+=== POST /convert/audio
+
+Converts any FFmpeg-supported audio input to any supported output format. Replaces the old, fixed `POST /convert/audio/to/mp3` and `POST /convert/audio/to/wav`. Same input sources, request shapes, and response convention as `POST /convert/video` above (multipart file / base64 / url / localFile; `multipart/form-data` with a `config` field, or a plain `application/json` body).
+
+**format** — one of: `mp3`, `wav`, `aac`, `m4a`, `flac`, `ogg`, `opus`, `wma`, `aiff`. Default `mp3`. The codec is implied by the format — no separate codec field to worry about.
+
+**quality** — three modes:
+
+* `{"mode":"default"}` (or omit `quality` entirely) — no quality reduction. Uses this API's standard 192k for lossy formats, or a true lossless encode for `wav`/`flac`/`aiff`. This is also the fallback when nothing at all is specified.
+* `{"mode":"reduce","value":40}` — reduces the bitrate by that percentage (1-99) relative to the 192k baseline. Not applicable to lossless formats.
+* `{"mode":"maxSize","value":10}` — targets a maximum **output file size**, in megabytes, the same way `video.quality.mode="maxSize"` works on `/convert/video`: the bitrate is computed automatically from the probed source duration. Not applicable to lossless formats.
+
+The response is the converted file, plus headers: `X-Original-Format`, `X-Output-Format`, `X-Audio-Codec`, `X-Audio-Quality`, `X-Output-Duration`, `X-Warnings`.
+
+----
+# Defaults only — any input to MP3, no quality loss
+curl -F "audio=@input.wav" HOST:PORT/convert/audio > output.mp3
+
+# Convert to a specific format
+curl -F "audio=@input.mp3" -F 'config={"format":"flac"}' HOST:PORT/convert/audio > output.flac
+curl -F "audio=@input.m4a" -F 'config={"format":"opus"}' HOST:PORT/convert/audio > output.opus
+
+# Reduce quality/size by 50%
+curl \
+  -F "audio=@input.wav" \
+  -F 'config={"format":"mp3","quality":{"mode":"reduce","value":50}}' \
+  HOST:PORT/convert/audio > output.mp3
+
+# Cap the output at a maximum file size (e.g. a long podcast capped at 10MB)
+curl \
+  -F "audio=@input.wav" \
+  -F 'config={"format":"aac","quality":{"mode":"maxSize","value":10}}' \
+  HOST:PORT/convert/audio > output.aac
+
+# Source = remote URL, no file upload at all
+curl \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/input.wav","format":"mp3"}' \
+  HOST:PORT/convert/audio > output.mp3
+----
+
 FFMPEG API is provided as Docker image for easy consumption.
 
 == Endpoints
 
 * `GET /` - API Readme.
 * `GET /endpoints` - Service endpoints as JSON.
-* `POST /convert/audio/to/mp3` - Convert audio file in request body to mp3. Returns mp3-file.
-* `POST /convert/audio/to/wav` - Convert audio file in request body to wav. Returns wav-file.
 * `POST /convert/image/to/jpg` - Convert image file to jpg. Returns jpg-file.
 * `POST /video/extract/audio` - Extract audio track from POSTed video file. Returns audio track as 1-channel wav-file.
 ** Query param: `mono=no` - Returns audio track, all channels.
@@ -338,10 +385,8 @@ Input file to FFMPEG API can be anything that ffmpeg supports. See https://www.f
 
 === Convert
 
-Convert audio/image files using the API. For video, see `POST /convert/video` above — it replaces the old fixed `/convert/video/to/mp4` with full control over container/resolution/codec/audio/etc.
+Convert image files using the API. For video, see `POST /convert/video` above (replaces the old fixed `/convert/video/to/mp4`). For audio, see `POST /convert/audio` above (replaces the old fixed `/convert/audio/to/mp3` and `/convert/audio/to/wav`) — both offer full control over format/codec/quality.
 
-* `curl -F "file=@input.wav" 127.0.0.1:3000/convert/audio/to/mp3  > output.mp3`
-* `curl -F "file=@input.m4a" 127.0.0.1:3000/convert/audio/to/wav  > output.wav`
 * `curl -F "file=@input.tiff" 127.0.0.1:3000/convert/image/to/jpg  > output.jpg`
 * `curl -F "file=@input.png" 127.0.0.1:3000/convert/image/to/jpg  > output.jpg`
 
