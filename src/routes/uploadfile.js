@@ -11,7 +11,10 @@ const logger = require('../utils/logger.js')
 router.use(function (req, res,next) {
     
     // Routes that manage their own multi-file upload bypass this middleware
-    const multiFileRoutes = ['/image/to/images-to-video', '/subtitle/ass', '/video/add/audio', '/convert/video', '/convert/audio'];
+    // req.path preserves the client's exact trailing slash (Express's non-strict
+    // routing only affects route matching later on, not this raw value) — list
+    // both forms for any route whose documented examples use a trailing slash.
+    const multiFileRoutes = ['/image/to/images-to-video', '/subtitle/ass', '/video/add/audio', '/convert/video', '/convert/audio', '/convert/image', '/convert/image/'];
     if (req.method === 'POST' && multiFileRoutes.indexOf(req.path) !== -1) {
         return next();
     }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ffmpeg-api</title>
+<title>FFMPEG NEXT API</title>
 <meta name="description" content="Serviço HTTP para converter, extrair e processar arquivos de mídia usando FFmpeg.">
 <style>
 :root {
@@ -28,6 +28,8 @@ strong{color:var(--text)}
 /* ── Header ── */
 header{padding:36px 0 28px;border-bottom:1px solid var(--border);margin-bottom:28px}
 h1{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px}
+.version-badge{font-size:12px;font-weight:400;font-family:'SF Mono','Fira Code',monospace;color:var(--muted);margin-left:8px;vertical-align:middle}
+.version-badge:hover{color:var(--accent)}
 .tagline{color:var(--muted);font-size:15px;margin-bottom:14px}
 .links{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px}
 .links a{color:var(--muted)}
@@ -114,9 +116,11 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
 <div class="wrap">
 
 <header>
-  <h1>ffmpeg-api</h1>
+  <h1>FFMPEG NEXT API<a href="https://github.com/codorco/ffmpeg-next-api/blob/main/CHANGES.adoc" class="version-badge" title="Versions &amp; Changes">v0.6</a></h1>
   <p class="tagline">Serviço HTTP para converter, extrair e processar arquivos de áudio, vídeo e imagem usando <strong>FFmpeg</strong>.</p>
   <div class="links">
+    <a href="https://github.com/codorco/ffmpeg-next-api">GitHub</a>
+    <span class="dot">·</span>
     <a href="https://github.com/samisalkosuo/ffmpeg-api">Código-fonte</a>
     <span class="dot">·</span>
     <a href="https://github.com/fluent-ffmpeg/node-fluent-ffmpeg">fluent-ffmpeg</a>
@@ -135,7 +139,6 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge get">GET</span></td><td><code>/</code></td><td>Esta documentação</td></tr>
       <tr><td><span class="badge get">GET</span></td><td><code>/endpoints</code></td><td>Lista todos os endpoints em JSON</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/probe</code></td><td>Metadados de qualquer arquivo de mídia</td></tr>
-      <tr><td><span class="badge post">POST</span></td><td><code>/convert/image/to/jpg</code></td><td>Converte imagem para JPG</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/audio</code></td><td>Extrai faixa de áudio de um vídeo</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/video/extract/images</code></td><td>Extrai frames de um vídeo como PNG</td></tr>
       <tr><td><span class="badge get">GET</span></td><td><code>/video/extract/download/:filename</code></td><td>Baixa um frame extraído</td></tr>
@@ -145,6 +148,7 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
       <tr><td><span class="badge post">POST</span></td><td><code>/video/add/audio</code></td><td>Adiciona e mistura trilhas de áudio em um vídeo</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/video</code></td><td>Transcodificação profissional de vídeo (container, resolução, codecs, HDR, etc.)</td></tr>
       <tr><td><span class="badge post">POST</span></td><td><code>/convert/audio</code></td><td>Converte áudio para qualquer formato suportado, com controle de qualidade/tamanho</td></tr>
+      <tr><td><span class="badge post">POST</span></td><td><code>/convert/image</code></td><td>Converte e processa imagens (resize, crop, rotação, watermark, compressão)</td></tr>
     </tbody>
   </table>
 </section>
@@ -176,22 +180,6 @@ li{color:var(--muted);font-size:14px;margin-bottom:3px}
 
 
 
-<!-- ══════════════════════════════════════════════════════ CONVERT IMAGE JPG -->
-<details>
-  <summary>
-    <span class="badge post">POST</span>
-    <span class="s-path">/convert/image/to/jpg</span>
-    <span class="s-desc">Converte imagem para JPG</span>
-    <span class="arrow">&#9656;</span>
-  </summary>
-  <div class="body">
-    <div class="label">Exemplos</div>
-    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<pre><code>curl -F "file=@input.png"  HOST:PORT/convert/image/to/jpg &gt; output.jpg
-curl -F "file=@input.tiff" HOST:PORT/convert/image/to/jpg &gt; output.jpg
-curl -F "file=@input.webp" HOST:PORT/convert/image/to/jpg &gt; output.jpg</code></pre></div>
-  </div>
-</details>
 
 <!-- ══════════════════════════════════════════════════════ EXTRACT AUDIO -->
 <details>
@@ -1484,6 +1472,222 @@ curl -F "audio=@input.m4a" -F 'config={"format":"opus"}' HOST:PORT/convert/audio
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com/input.wav","format":"mp3"}' \
   HOST:PORT/convert/audio &gt; output.mp3</code></pre></div>
+    </div>
+
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════ CONVERT IMAGE -->
+<details>
+  <summary>
+    <span class="badge post">POST</span>
+    <span class="s-path">/convert/image</span>
+    <span class="s-desc">Converte e processa imagens</span>
+    <span class="arrow">&#9656;</span>
+  </summary>
+  <div class="body">
+    <p>Endpoint genérico de conversão/processamento de imagens. Substitui o antigo <code>/convert/image/to/jpg</code> (fixo). Mesma arquitetura de <code>/convert/video</code> e <code>/convert/audio</code> — só FFmpeg, sem biblioteca de imagem separada — com as mesmas 4 fontes de entrada e o mesmo transporte duplo JSON/multipart. O campo multipart do arquivo principal é <code>file</code> (igual aos outros endpoints simples desta API), com um campo opcional <code>watermark</code> para a marca d'água.</p>
+
+    <p><code>format</code> é a única configuração obrigatória — pode vir como query param (<code>?format=jpg</code>, a forma mais simples) ou dentro do <code>config</code> JSON. Todo o resto é opcional e o padrão é "não alterar nada além do formato": sem resize, sem crop, sem watermark, sem rotação, sem flip, sem compressão adicional. O formato de entrada é sempre detectado automaticamente pelo conteúdo do arquivo (nunca pela extensão).</p>
+
+    <div class="label">Formatos de saída suportados</div>
+    <p><code>jpg</code>, <code>jpeg</code>, <code>png</code>, <code>webp</code>, <code>avif</code>, <code>bmp</code>, <code>gif</code>, <code>tiff</code>, <code>tif</code>, <code>ico</code>, <code>ppm</code>, <code>pgm</code>, <code>pbm</code>.</p>
+    <div class="note"><code>svg</code> <strong>não</strong> é oferecido de propósito — é um formato vetorial e o FFmpeg não tem codificador de rasterização para ele; pedir <code>svg</code> retorna um erro explicando isso. <code>webp</code> e <code>avif</code> dependem do build do FFmpeg ter <code>libwebp</code>/<code>libaom-av1</code> compilados — se faltar, o próprio FFmpeg retorna um erro claro de codec não encontrado.</div>
+
+    <div class="label">Estrutura do config JSON</div>
+    <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>{
+  "format": "jpg",
+  "quality": 85,
+  "compression": { "maxSize": "1MB", "targetReduction": 50, "allowResolutionReduction": false },
+  "resize": { "percentage": 50, "maxWidth": 1920, "maxHeight": 1080, "width": 1200, "height": 800, "resizeMode": "contain" },
+  "rotation": 90,
+  "flip": "horizontal",
+  "crop": { "aspectRatio": "1:1" },
+  "watermark": { "file": "logo.png", "position": "bottom-right", "size": 20, "opacity": 1.0 }
+}</code></pre></div>
+
+    <div class="label">quality e compression</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>quality</code></td><td><code>1</code>–<code>100</code></td><td><code>85</code></td><td>Só para <code>jpg</code>/<code>webp</code>/<code>avif</code> (únicos com controle de qualidade real). Ignorado (com aviso) nos demais</td></tr>
+        <tr><td><code>compression.maxSize</code></td><td><code>"500KB"</code>, <code>"1MB"</code>, <code>"5MB"</code>, <code>"20MB"</code></td><td>—</td><td>Busca binária de qualidade (até 6 tentativas, nunca em loop infinito) pelo maior valor que ainda cabe no tamanho pedido. Tem prioridade sobre <code>targetReduction</code></td></tr>
+        <tr><td><code>compression.targetReduction</code></td><td><code>10</code>–<code>80</code> (%)</td><td>—</td><td>Mede o tamanho original e busca essa redução percentual, usando a mesma busca do <code>maxSize</code></td></tr>
+        <tr><td><code>compression.allowResolutionReduction</code></td><td><code>true</code>/<code>false</code></td><td><code>false</code></td><td>Se a qualidade sozinha não bastar, permite reduzir a resolução (até 3 rodadas extras) para atingir a meta. Único recurso disponível para formatos sem perdas (png/bmp/gif/tiff/ico/ppm/pgm/pbm)</td></tr>
+      </tbody>
+    </table>
+    <div class="note">A meta de tamanho é tratada como <strong>objetivo</strong>, não garantia matemática — se realmente não for possível sem degradar demais, a API retorna o melhor resultado possível junto de um aviso em <code>X-Warnings</code>, nunca um arquivo quebrado.</div>
+
+    <div class="label">resize — escolha um modo por vez</div>
+    <table>
+      <thead><tr><th>Modo</th><th>Exemplo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>percentage</code></td><td><code>{"percentage":50}</code></td><td>Escala largura e altura proporcionalmente. <code>50</code> = metade, <code>150</code> = 150% (upscale incluso)</td></tr>
+        <tr><td><code>maxWidth</code>/<code>maxHeight</code></td><td><code>{"maxWidth":1920}</code></td><td>Teto — só reduz se a imagem exceder o valor, preservando a proporção. Nunca aumenta</td></tr>
+        <tr><td><code>width</code>+<code>height</code></td><td><code>{"width":1200,"height":800}</code></td><td>Caixa exata, respeitando <code>resizeMode</code>: <code>contain</code> (padrão, preserva proporção com barras pretas), <code>cover</code> (preserva proporção, corta o excesso), <code>stretch</code> (preenche exatamente, distorce)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">rotation, flip e crop</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>rotation</code></td><td><code>0</code>, <code>90</code>, <code>180</code>, <code>270</code></td><td><code>0</code></td><td>Considera corretamente a troca de largura/altura em 90°/270° para qualquer crop/resize/watermark seguinte</td></tr>
+        <tr><td><code>flip</code></td><td><code>none</code>, <code>horizontal</code>, <code>vertical</code>, <code>both</code></td><td><code>none</code></td><td>—</td></tr>
+        <tr><td><code>crop.aspectRatio</code></td><td><code>1:1</code>, <code>4:5</code>, <code>16:9</code>, <code>9:16</code>, <code>4:3</code>, <code>custom</code></td><td>—</td><td><code>custom</code> usa <code>width</code>/<code>height</code> como <strong>proporção</strong> (ex: 3:2), não pixels literais. Sempre corta a maior área centralizada possível, sem distorcer</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">watermark</div>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>file</code></td><td>string (localFile) ou <code>{base64|url|localFile}</code></td><td>—</td><td>Ou envie o arquivo no campo multipart <code>watermark</code></td></tr>
+        <tr><td><code>position</code></td><td><code>top-left</code>, <code>top-right</code>, <code>bottom-left</code>, <code>bottom-right</code>, <code>center</code>, <code>custom</code></td><td><code>bottom-right</code></td><td><code>custom</code> usa <code>x</code>/<code>y</code> em pixels — rejeitado se colocar a marca totalmente fora da imagem</td></tr>
+        <tr><td><code>size</code></td><td><code>1</code>–<code>100</code></td><td><code>20</code></td><td>Percentual da largura da imagem principal. Use <code>sizePixels</code> para um valor exato em pixels</td></tr>
+        <tr><td><code>opacity</code></td><td><code>0</code>–<code>1</code></td><td><code>1.0</code></td><td><code>0</code> = invisível, <code>1</code> = totalmente opaca</td></tr>
+      </tbody>
+    </table>
+
+    <div class="label">Ordem de processamento</div>
+    <p><code>rotação → flip → crop → resize → watermark → compressão → exportação</code> — o crop sempre atua sobre os pixels em resolução plena antes de qualquer redução, evitando perda de qualidade desnecessária.</p>
+
+    <div class="label">Headers de resposta</div>
+    <p><code>X-Original-Format</code>, <code>X-Output-Format</code>, <code>X-Original-Size</code>, <code>X-Output-Size</code>, <code>X-Size-Reduction-Percent</code>, <code>X-Original-Resolution</code>, <code>X-Output-Resolution</code>, <code>X-Rotation-Applied</code>, <code>X-Watermark-Applied</code>, <code>X-Crop-Applied</code>, <code>X-Warnings</code>.</p>
+
+    <div class="label">Exemplos</div>
+
+    <div class="sub">
+      <h3>1–4. Conversão entre formatos (query param, a forma mais simples)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># PNG → JPG
+curl -F "file=@input.png" "HOST:PORT/convert/image/?format=jpg" &gt; output.jpg
+
+# JPG → PNG
+curl -F "file=@input.jpg" "HOST:PORT/convert/image/?format=png" &gt; output.png
+
+# PNG → WEBP
+curl -F "file=@input.png" "HOST:PORT/convert/image/?format=webp" &gt; output.webp
+
+# WEBP → JPG
+curl -F "file=@input.webp" "HOST:PORT/convert/image/?format=jpg" &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>5–6. Compressão por tamanho máximo ou redução percentual</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Tamanho máximo de 1MB
+curl -F "file=@input.png" -F 'config={"format":"jpg","compression":{"maxSize":"1MB"}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Reduzir ~50% do tamanho
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","compression":{"targetReduction":50}}' \
+  HOST:PORT/convert/image &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>7–11. Resize: percentual, upscale, largura/altura máxima, resolução customizada</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Reduzir resolução em 50%
+curl -F "file=@input.png" -F 'config={"format":"png","resize":{"percentage":50}}' \
+  HOST:PORT/convert/image &gt; output.png
+
+# Aumentar resolução em 150% (upscale)
+curl -F "file=@input.png" -F 'config={"format":"png","resize":{"percentage":150}}' \
+  HOST:PORT/convert/image &gt; output.png
+
+# Largura máxima (altura calculada automaticamente)
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","resize":{"maxWidth":1920}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Altura máxima (largura calculada automaticamente)
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","resize":{"maxHeight":1080}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Resolução customizada (contain — preserva proporção, padrão)
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","resize":{"width":1200,"height":800}}' \
+  HOST:PORT/convert/image &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>12–13. Rotação e espelhamento</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Rotação 90°
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","rotation":90}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Espelhamento horizontal
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","flip":"horizontal"}' \
+  HOST:PORT/convert/image &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>14–17. Watermark: posição, centralizada, transparência, customizada</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Canto inferior direito (padrão)
+curl -F "file=@input.jpg" -F "watermark=@logo.png" \
+  -F 'config={"format":"jpg","watermark":{"position":"bottom-right"}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Centralizada
+curl -F "file=@input.jpg" -F "watermark=@logo.png" \
+  -F 'config={"format":"jpg","watermark":{"position":"center"}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Com transparência (50%)
+curl -F "file=@input.jpg" -F "watermark=@logo.png" \
+  -F 'config={"format":"jpg","watermark":{"position":"bottom-right","opacity":0.5}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Posição customizada (x,y em pixels)
+curl -F "file=@input.jpg" -F "watermark=@logo.png" \
+  -F 'config={"format":"jpg","watermark":{"position":"custom","x":100,"y":200,"size":15}}' \
+  HOST:PORT/convert/image &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>18–21. Crop por proporção — 1:1, 4:5, 16:9, 9:16</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code># Quadrado 1:1
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","crop":{"aspectRatio":"1:1"}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Retrato 4:5 (Instagram)
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","crop":{"aspectRatio":"4:5"}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Widescreen 16:9
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","crop":{"aspectRatio":"16:9"}}' \
+  HOST:PORT/convert/image &gt; output.jpg
+
+# Stories/Reels 9:16
+curl -F "file=@input.jpg" -F 'config={"format":"jpg","crop":{"aspectRatio":"9:16"}}' \
+  HOST:PORT/convert/image &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>22. Combinando várias configurações na mesma requisição</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl -F "file=@input.jpg" -F "watermark=@logo.png" \
+  -F 'config={
+    "format": "jpg",
+    "crop": { "aspectRatio": "1:1" },
+    "resize": { "maxWidth": 1080 },
+    "rotation": 90,
+    "watermark": { "position": "bottom-right", "size": 15, "opacity": 0.8 },
+    "compression": { "maxSize": "500KB" }
+  }' \
+  HOST:PORT/convert/image &gt; output.jpg</code></pre></div>
+    </div>
+
+    <div class="sub">
+      <h3>Fonte: URL remota (JSON, sem upload)</h3>
+      <div class="code-wrap"><button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+<pre><code>curl \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/input.png","format":"webp"}' \
+  HOST:PORT/convert/image &gt; output.webp</code></pre></div>
     </div>
 
   </div>

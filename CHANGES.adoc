@@ -1,3 +1,10 @@
+=== 0.6 (2026-08-21)
+
+* Replaced `POST /convert/image/to/jpg` with `POST /convert/image`: generic image conversion/processing endpoint supporting `jpg`, `jpeg`, `png`, `webp`, `avif`, `bmp`, `gif`, `tiff`, `tif`, `ico`, `ppm`, `pgm`, `pbm` as output, with automatic input format detection, the same 4 input sources as `/convert/video`/`/convert/audio`, and a `watermark` file field.
+* Added resize (percentage/maxWidth/maxHeight/custom width+height with contain/cover/stretch), rotation (0/90/180/270), flip, crop (aspect-ratio presets 1:1/4:5/16:9/9:16/4:3 plus custom), and watermark (position presets or custom x/y, size, opacity) to `POST /convert/image`.
+* Added `compression.maxSize`/`compression.targetReduction` on `POST /convert/image`: a bounded quality-then-resolution binary search targets a maximum file size or percentage reduction, reusing the same "never loop unbounded" pattern as the video/audio `maxSize` modes.
+* Removed `src/routes/convert.js` (only ever held the now-replaced `/convert/image/to/jpg` route).
+
 === 0.5 (2026-08-21)
 
 * Replaced `POST /convert/audio/to/mp3` and `POST /convert/audio/to/wav` with `POST /convert/audio`: converts any FFmpeg-supported audio input to any supported output format (`mp3`, `wav`, `aac`, `m4a`, `flac`, `ogg`, `opus`, `wma`, `aiff`), with the same 4 input sources and request/response conventions as `POST /convert/video`.

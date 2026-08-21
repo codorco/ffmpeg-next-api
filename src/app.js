@@ -27,10 +27,6 @@ app.use(compression());
 var upload = require('./routes/uploadfile.js');
 app.use(upload);
 
-//route to convert images to jpg
-var convert = require('./routes/convert.js');
-app.use('/convert', convert);
-
 //route to convert video with full control over container/resolution/codec/audio/etc
 var convertVideo = require('./routes/convertvideo.js');
 app.use('/convert', convertVideo);
@@ -38,6 +34,10 @@ app.use('/convert', convertVideo);
 //route to convert audio to any FFmpeg-supported format, with quality/size control
 var convertAudio = require('./routes/convertaudio.js');
 app.use('/convert', convertAudio);
+
+//route to convert/process images to any FFmpeg-supported format (resize/crop/rotate/watermark/compress)
+var convertImage = require('./routes/convertimage.js');
+app.use('/convert', convertImage);
 
 //routes to extract images or audio from video
 var extract = require('./routes/extract.js');

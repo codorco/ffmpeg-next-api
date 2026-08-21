@@ -1,4 +1,4 @@
-= FFMPEG API
+= FFMPEG NEXT API
 
 A web service for converting audio/video/image files using FFMPEG.
 
@@ -12,6 +12,8 @@ Fork on:
 
 * https://github.com/samisalkosuo/ffmpeg-api
 
+NOTE: This README covers endpoints and parameters at a reference level. Full cURL examples (plus n8n integration snippets and sample JSON payloads) for every endpoint live in the API's built-in documentation page, served at the service root (`GET /`) once the API is running — that's the `index.html` included in this repo, which appears at the default directory when installed.
+
 == New Features in This Fork
 
 The following endpoints were added on top of the original project:
@@ -22,61 +24,21 @@ Receives a tall image (e.g. a webpage screenshot) and generates a smooth top-to-
 
 Query params: `velocidade` (px/s, default 180), `crf` (0–51, default 20), `largura` (px, default 1080), `altura` (px, default 1920), `fps` (default 30).
 
-----
-curl -F "file=@screenshot.png" HOST:PORT/image/to/scroll-video > scroll.mp4
-----
-
 === POST /image/to/images-to-video
 
 Creates a video slideshow from multiple uploaded images. Each image is displayed for an equal portion of the requested total duration.
 
 Query params: `totalDuration` (required, seconds), `width` (default 1920), `height` (default 1080), `fps` (default 30), `crf` (default 20), `scale` (contain/cover/stretch/fill, default contain), `transition` (true/false, default false).
 
-----
-curl \
-  -F "file=@img1.jpg" -F "file=@img2.jpg" -F "file=@img3.jpg" \
-  "HOST:PORT/image/to/images-to-video?totalDuration=15&scale=cover" \
-  > slideshow.mp4
-----
-
 === POST /subtitle/ass
 
 Burns or soft-attaches subtitles to a video with full ASS styling, effects, karaoke highlighting, and typewriter animations. Accepts ASS, SRT, or plain text.
-
-----
-curl \
-  -F "video=@video.mp4" \
-  -F "subtitle=@legenda.srt" \
-  -F 'config={"style":{"fontsize":72},"effects":{"preset":"fade"}}' \
-  HOST:PORT/subtitle/ass > output.mp4
-----
 
 === POST /video/add/audio
 
 Adds up to 5 audio tracks to a video with per-track control over volume, trim, delay, loop, fade, and playback rate. Supports mix and streams modes, ducking (automatic music reduction during speech), crossfade between tracks, normalization, and afterVideo extensions (freeze/color/image) when the audio outlasts the video.
 
 No FFmpeg knowledge required — describe the result in JSON and the API builds all filters automatically.
-
-----
-# Add looping background music at 30% volume
-curl \
-  -F "video=@video.mp4" \
-  -F "track0=@music.mp3" \
-  -F 'config={"tracks":[{"volume":0.3,"loop":true}],"originalAudio":"keep"}' \
-  HOST:PORT/video/add/audio > output.mp4
-
-# Voice + music with automatic ducking
-curl \
-  -F "video=@video.mp4" \
-  -F "track0=@voice.mp3" \
-  -F "track1=@music.mp3" \
-  -F 'config={
-    "originalAudio":"remove",
-    "tracks":[{"volume":1.0},{"volume":0.5,"loop":true}],
-    "ducking":{"enabled":true,"voiceTrack":0,"musicTrack":1,"musicVolume":0.15}
-  }' \
-  HOST:PORT/video/add/audio > output.mp4
-----
 
 === POST /convert/video
 
@@ -159,134 +121,6 @@ All config fields are optional — an empty request converts to MP4, H.264/CRF 2
 
 The response is the converted file (same download behavior as every other `/convert/*` endpoint), plus informational headers: `X-Original-Format`, `X-Original-Resolution`, `X-Output-Format`, `X-Output-Resolution`, `X-Video-Codec`, `X-Audio-Codec`, `X-Output-Fps`, `X-Output-Duration`, `X-Warnings` (JSON array — e.g. when a codec was overridden by the container, or `copy` couldn't be honored).
 
-----
-# Defaults only — MP4, H.264, preserves the rest
-curl -F "video=@input.mov" HOST:PORT/convert/video > output.mp4
-
-# Convert to WebM (VP9 + Opus)
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"format":"webm","video":{"codec":"vp9"},"audio":{"codec":"opus"}}' \
-  HOST:PORT/convert/video > output.webm
-
-# 1080p vertical (reels/shorts), cover fit
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"resolution":{"preset":"1080p","orientation":"vertical","resizeMode":"cover"}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Change ONLY the resolution (720p), everything else stays at its smart default
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"resolution":{"preset":"720p"}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Change ONLY the resolution, to a custom size
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"resolution":{"preset":"custom","custom":{"width":1280,"height":720}}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Custom resolution, letterboxed with a blurred background
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"resolution":{"preset":"custom","custom":{"width":1600,"height":900},"background":{"mode":"blur","strength":30}}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Force 30fps, bt709, drop HDR to SDR
-curl \
-  -F "video=@hdr_input.mov" \
-  -F 'config={"video":{"fps":30,"colorSpace":"bt709","hdr":"remove"}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Remove audio entirely
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"audio":{"remove":true}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Reduce quality/size generically (higher CRF = smaller, lower quality)
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"video":{"quality":{"mode":"crf","value":32}}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Target a MAXIMUM output file size — e.g. a 300MB input capped at ~50MB.
-# The bitrate needed to hit that size is computed automatically from the
-# video's duration; no manual bitrate math required.
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"format":"mp4","video":{"quality":{"mode":"maxSize","value":50}}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Downscale to 720p AND cap the final file at 50MB in the same request.
-# resolution.orientation defaults to "auto", so a 9:16 source stays 720x1280
-# (not forced into 1280x720) — no need to set orientation explicitly here.
-curl \
-  -F "video=@input.mp4" \
-  -F 'config={"resolution":{"preset":"720p"},"video":{"quality":{"mode":"maxSize","value":50}}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Stream-copy both tracks into a different container (fast, no re-encode)
-curl \
-  -F "video=@input.mkv" \
-  -F 'config={"format":"mp4","video":{"codec":"copy"},"audio":{"codec":"copy"}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Source = remote URL, no file upload at all
-curl \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/input.mp4","format":"mkv","video":{"codec":"hevc"}}' \
-  HOST:PORT/convert/video > output.mkv
-
-# Source = base64 (JSON transport)
-curl \
-  -H "Content-Type: application/json" \
-  -d '{"base64":"'"$(base64 -w0 input.mp4)"'","resolution":{"preset":"720p"}}' \
-  HOST:PORT/convert/video > output.mp4
-
-# Source = file already inside the shared uploads/ volume
-curl \
-  -H "Content-Type: application/json" \
-  -d '{"localFile":"clip.mp4","format":"gif","resolution":{"preset":"480p"}}' \
-  HOST:PORT/convert/video > output.gif
-----
-
-n8n HTTP Request node (multipart, binary passthrough):
-
-----
-{
-  "method": "POST",
-  "url": "http://HOST:PORT/convert/video",
-  "sendBody": true,
-  "contentType": "multipart-form-data",
-  "bodyParameters": {
-    "parameters": [
-      { "name": "video",  "value": "={{ $binary.data }}", "parameterType": "formBinaryData" },
-      {
-        "name": "config",
-        "value": "={{ JSON.stringify({ format: 'mp4', resolution: { preset: '1080p', orientation: 'vertical' }, video: { codec: 'h264', fps: 30 } }) }}",
-        "parameterType": "formData"
-      }
-    ]
-  },
-  "options": { "response": { "response": { "responseFormat": "file" } } }
-}
-----
-
-n8n HTTP Request node (JSON body, source by URL — no binary handling needed):
-
-----
-{
-  "method": "POST",
-  "url": "http://HOST:PORT/convert/video",
-  "sendBody": true,
-  "contentType": "json",
-  "jsonBody": "={{ JSON.stringify({ url: $json.videoUrl, format: 'mp4', audio: { remove: true } }) }}",
-  "options": { "response": { "response": { "responseFormat": "file" } } }
-}
-----
-
 === POST /convert/audio
 
 Converts any FFmpeg-supported audio input to any supported output format. Replaces the old, fixed `POST /convert/audio/to/mp3` and `POST /convert/audio/to/wav`. Same input sources, request shapes, and response convention as `POST /convert/video` above (multipart file / base64 / url / localFile; `multipart/form-data` with a `config` field, or a plain `application/json` body).
@@ -301,32 +135,56 @@ Converts any FFmpeg-supported audio input to any supported output format. Replac
 
 The response is the converted file, plus headers: `X-Original-Format`, `X-Output-Format`, `X-Audio-Codec`, `X-Audio-Quality`, `X-Output-Duration`, `X-Warnings`.
 
+=== POST /convert/image
+
+Generic image conversion/processing endpoint. Replaces the old, fixed `POST /convert/image/to/jpg`. Same architecture as `/convert/video` and `/convert/audio` (FFmpeg only — this API has never used a separate image library, see `image.js`'s existing scale filters, which the crop/resize logic here builds on): 4 input sources, dual JSON/multipart transport, same response convention. The multipart file field is named `file` (matching the other simple endpoints in this API and the example below), with an optional `watermark` file field.
+
+**format** is the only required setting — it can be given either as a query parameter (`?format=jpg`, the simplest form) or inside the JSON config. Everything else is optional and defaults to "do nothing extra": no resize, no crop, no watermark, no rotation, no flip, no additional compression.
+
+Input format is always auto-detected from the file's actual content (never from its extension) via the same FFmpeg probe already used by every other endpoint in this API.
+
+**Supported output formats**: `jpg`, `jpeg`, `png`, `webp`, `avif`, `bmp`, `gif`, `tiff`, `tif`, `ico`, `ppm`, `pgm`, `pbm`. `svg` is intentionally **not** offered — it's a vector format and FFmpeg has no raster encoder for it; requesting it returns a clear error explaining why. `webp` and `avif` additionally depend on the FFmpeg build having `libwebp`/`libaom-av1` compiled in — if missing, FFmpeg itself returns a clear encoder-not-found error.
+
+.config JSON — every field optional except (implicitly) `format`
 ----
-# Defaults only — any input to MP3, no quality loss
-curl -F "audio=@input.wav" HOST:PORT/convert/audio > output.mp3
-
-# Convert to a specific format
-curl -F "audio=@input.mp3" -F 'config={"format":"flac"}' HOST:PORT/convert/audio > output.flac
-curl -F "audio=@input.m4a" -F 'config={"format":"opus"}' HOST:PORT/convert/audio > output.opus
-
-# Reduce quality/size by 50%
-curl \
-  -F "audio=@input.wav" \
-  -F 'config={"format":"mp3","quality":{"mode":"reduce","value":50}}' \
-  HOST:PORT/convert/audio > output.mp3
-
-# Cap the output at a maximum file size (e.g. a long podcast capped at 10MB)
-curl \
-  -F "audio=@input.wav" \
-  -F 'config={"format":"aac","quality":{"mode":"maxSize","value":10}}' \
-  HOST:PORT/convert/audio > output.aac
-
-# Source = remote URL, no file upload at all
-curl \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/input.wav","format":"mp3"}' \
-  HOST:PORT/convert/audio > output.mp3
+{
+  "format": "jpg",
+  "quality": 85,
+  "compression": { "maxSize": "1MB", "targetReduction": 50, "allowResolutionReduction": false },
+  "resize": { "percentage": 50, "maxWidth": 1920, "maxHeight": 1080, "width": 1200, "height": 800, "resizeMode": "contain" },
+  "rotation": 90,
+  "flip": "horizontal",
+  "crop": { "aspectRatio": "1:1" },
+  "watermark": { "file": "logo.png", "position": "bottom-right", "size": 20, "opacity": 1.0 }
+}
 ----
+
+**quality** — 1-100, only for `jpg`/`webp`/`avif` (the only formats with a real quality knob). Default `85`. Ignored (with a warning) for lossless formats.
+
+**compression** — mutually exclusive size-targeting modes; `maxSize` wins if both are given:
+
+* `maxSize`: `"500KB"`, `"1MB"`, `"5MB"`, `"20MB"` — binary-searches the quality (bounded to 6 passes) for the highest value that still fits, without ever entering an unbounded loop.
+* `targetReduction`: `10`-`80` (%) — measures the original file size and searches for that percentage reduction, using the exact same search as `maxSize`.
+* `allowResolutionReduction` (default `false`) — if the target still isn't reachable through quality alone, permits shrinking the resolution (in bounded steps, up to 3 extra rounds) to get there. Never applied unless explicitly set to `true`. This is also the *only* lever available for lossless formats (`png`/`bmp`/`gif`/`tiff`/`ico`/`ppm`/`pgm`/`pbm`), since they have no quality knob at all.
+* Treated as a **target**, not an exact guarantee — if it truly can't be reached without extreme degradation, the API returns its best effort plus a warning in `X-Warnings`, never a broken file.
+
+**resize** — pick exactly one mode (never distorts the image unless `resizeMode="stretch"` is explicitly chosen):
+
+* `percentage`: `1`-`500` — scales width and height proportionally (`50` = half size, `150` = 150%, upscaling included).
+* `maxWidth` / `maxHeight` (either or both together) — a ceiling: only downscales if the image actually exceeds it, preserving aspect ratio. Never upscales.
+* `width` + `height` together — an exact target box, honoring `resizeMode`: `contain` (default, preserves aspect, letterboxes with black), `cover` (preserves aspect, crops to fill), `stretch` (fills exactly, distorts).
+
+**rotation** — `0` (default), `90`, `180`, `270`. Correctly accounts for the width/height swap at 90°/270° for any crop/resize/watermark that follows.
+
+**flip** — `none` (default), `horizontal`, `vertical`, `both`.
+
+**crop** — `aspectRatio`: `1:1`, `4:5`, `16:9`, `9:16`, `4:3`, or `custom` (with `width`/`height` given as a *ratio*, e.g. `3:2` — not literal pixel dimensions; the API always crops the largest possible centered area at that ratio, never distorting).
+
+**watermark** — `file`: a path string (shorthand for `localFile`) or `{base64|url|localFile}` object, or upload it as the multipart field `watermark`. `position`: `top-left`, `top-right`, `bottom-left`, `bottom-right`, `center` (default `bottom-right`), or `custom` with `x`/`y` in pixels (rejected if it would place the watermark fully outside the image). `size`: percent of the main image's width (default `20`), or `sizePixels` for an exact pixel width. `opacity`: `0`-`1` (default `1.0`, fully opaque).
+
+**Processing order**: rotate → flip → crop → resize → watermark → compression → export — chosen to avoid unnecessary quality loss (e.g. cropping before resizing means the crop math always works off full-resolution pixels).
+
+The response is the converted file, plus headers: `X-Original-Format`, `X-Output-Format`, `X-Original-Size`, `X-Output-Size`, `X-Size-Reduction-Percent`, `X-Original-Resolution`, `X-Output-Resolution`, `X-Rotation-Applied`, `X-Watermark-Applied`, `X-Crop-Applied`, `X-Warnings`.
 
 FFMPEG API is provided as Docker image for easy consumption.
 
@@ -334,7 +192,6 @@ FFMPEG API is provided as Docker image for easy consumption.
 
 * `GET /` - API Readme.
 * `GET /endpoints` - Service endpoints as JSON.
-* `POST /convert/image/to/jpg` - Convert image file to jpg. Returns jpg-file.
 * `POST /video/extract/audio` - Extract audio track from POSTed video file. Returns audio track as 1-channel wav-file.
 ** Query param: `mono=no` - Returns audio track, all channels.
 * `POST /video/extract/images` - Extract images from POSTed video file as PNG. Default FPS is 1. Returns JSON that includes download links to extracted images.
@@ -385,48 +242,21 @@ Input file to FFMPEG API can be anything that ffmpeg supports. See https://www.f
 
 === Convert
 
-Convert image files using the API. For video, see `POST /convert/video` above (replaces the old fixed `/convert/video/to/mp4`). For audio, see `POST /convert/audio` above (replaces the old fixed `/convert/audio/to/mp3` and `/convert/audio/to/wav`) — both offer full control over format/codec/quality.
-
-* `curl -F "file=@input.tiff" 127.0.0.1:3000/convert/image/to/jpg  > output.jpg`
-* `curl -F "file=@input.png" 127.0.0.1:3000/convert/image/to/jpg  > output.jpg`
+For video, see `POST /convert/video` above (replaces the old fixed `/convert/video/to/mp4`). For audio, see `POST /convert/audio` above (replaces the old fixed `/convert/audio/to/mp3` and `/convert/audio/to/wav`). For images, see `POST /convert/image` above (replaces the old fixed `/convert/image/to/jpg`). All three offer full control over format/codec/quality instead of a single fixed output.
 
 === Extract images
 
-Extract images from video using the API.
+`POST /video/extract/images` extracts images from a video. Returns JSON listing a download URL for each extracted image, unless `compress=zip` or `compress=gzip` is used, in which case it returns a single archive instead. Default FPS is 1; images are PNG. See sample: link:./samples/extracted_images.json[extracted_images.json].
 
-* `curl -F "file=@input.mov" 127.0.0.1:3000/video/extract/images`
-** Returns JSON that lists image download URLs for each extracted image.
-** Default FPS is 1.
-** Images are in PNG-format.
-** See sample: link:./samples/extracted_images.json[extracted_images.json].
-* `curl 127.0.0.1:3000/video/extract/download/ba0f565c-0001.png`
-** Downloads exracted image and deletes it from server.
-* `curl 127.0.0.1:3000/video/extract/download/ba0f565c-0001.png?delete=no`
-** Downloads exracted image but does not deletes it from server.
-* `curl -F "file=@input.mov" 127.0.0.1:3000/video/extract/images?compress=zip > images.zip`
-** Returns ZIP package of all extracted images.
-* `curl -F "file=@input.mov" 127.0.0.1:3000/video/extract/images?compress=gzip > images.tar.gz`
-** Returns GZIP (tar.gz) package of all extracted images.
-* `curl -F "file=@input.mov" 127.0.0.1:3000/video/extract/images?fps=0.5`
-** Sets FPS to extract images. FPS=0.5 is every two seconds, FPS=4 is four images per seconds, etc.
+`GET /video/extract/download/:filename` downloads one extracted image and deletes it from the server, unless `delete=no` is passed.
 
 === Extract audio
 
-Extract audio track from video using the API.
-
-* `curl -F "file=@input.mov" 127.0.0.1:3000/video/extract/audio`
-** Returns 1-channel WAV-file of video's audio track.
-* `curl -F "file=@input.mov" 127.0.0.1:3000/video/extract/audio?mono=no`
-** Returns WAV-file of video's audio track, with all the channels as in input video.
+`POST /video/extract/audio` extracts the audio track from a video as a WAV file — 1 channel (mono) by default, or all channels with `mono=no`.
 
 === Probe
 
-Probe audio/video/image files using the API.
-
-* `curl -F "file=@input.mov" 127.0.0.1:3000/probe`
-** Returns JSON metadata of media file.
-** The same JSON metadata as in ffprobe command: `ffprobe -of json -show_streams -show_format input.mov`.
-** See sample of MOV-video metadata: link:./samples/probe_metadata.json[probe_metadata.json].
+`POST /probe` returns full JSON metadata for any media file — the same output as `ffprobe -of json -show_streams -show_format`. See sample: link:./samples/probe_metadata.json[probe_metadata.json].
 
 
 == Background
