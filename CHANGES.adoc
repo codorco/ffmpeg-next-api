@@ -1,3 +1,8 @@
+=== 0.7 (2026-09-03)
+
+* Raised this deployment's max upload size from the app's built-in default of 512MiB to 1GiB via `FILE_SIZE_LIMIT_BYTES=1073741824` in `docker-compose.yml` — no code change needed for this, since every endpoint already reads the same single `constants.js` value. Affects `/video/extract/audio`, `/video/extract/images`, `/probe`, and all `/convert/*` endpoints alike.
+* Fixed a temp-file leak in `src/routes/uploadfile.js` (the generic multipart middleware used by `/probe`, `/video/extract/*`, and the legacy image endpoint): a rejected oversized upload was never deleted from `/tmp`, both because the cleanup code referenced an unimported `utils` module and because it lived in a `busboy` `'finish'` handler that never actually fires once the response closes the connection before the request body finishes draining. Cleanup now happens directly in the `file` stream's `'limit'` handler, where it's guaranteed to run.
+
 === 0.6 (2026-08-21)
 
 * Replaced `POST /convert/image/to/jpg` with `POST /convert/image`: generic image conversion/processing endpoint supporting `jpg`, `jpeg`, `png`, `webp`, `avif`, `bmp`, `gif`, `tiff`, `tif`, `ico`, `ppm`, `pgm`, `pbm` as output, with automatic input format detection, the same 4 input sources as `/convert/video`/`/convert/audio`, and a `watermark` file field.

@@ -5,6 +5,11 @@ services:
     restart: unless-stopped
     ports:
       - "9025:3000"
+    environment:
+      # Max upload size for multipart/base64/url sources across all endpoints
+      # (single source of truth: src/constants.js). Raised from the app's
+      # built-in default of 512MiB (536870912) to 1GiB.
+      - FILE_SIZE_LIMIT_BYTES=1073741824
     volumes:
       - ./uploads:/home/ffmpgapi/uploads
     networks:

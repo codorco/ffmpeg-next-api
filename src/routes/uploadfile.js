@@ -5,6 +5,7 @@ const uniqueFilename = require('unique-filename');
 
 var router = express.Router()
 const logger = require('../utils/logger.js')
+const utils = require('../utils/utils.js')
 
 //route to handle file upload in all POST requests
 //file is saved to res.locals.savedFile and can be used in subsequent routes.
@@ -45,6 +46,8 @@ router.use(function (req, res,next) {
             next(err);
         });
 
+        let writeStream = null;
+
         busboy.on('file', function(
             fieldname,
             file,
@@ -58,6 +61,13 @@ router.use(function (req, res,next) {
                 logger.error(msg);
                 res.writeHead(500, {'Connection': 'close'});
                 res.end(JSON.stringify({error: msg}));
+                // Clean up the partial upload here, not in busboy's 'finish' handler:
+                // the client's connection is torn down by 'Connection: close' above
+                // before the (oversized) request body finishes draining, so 'finish'
+                // never fires and the temp file would otherwise leak on every
+                // rejected oversized upload.
+                if (writeStream) writeStream.destroy();
+                try { utils.deleteFile(savedFile); } catch (e) { /* best effort */ }
             });
             let log = {
                 file: filename,
@@ -76,14 +86,14 @@ router.use(function (req, res,next) {
             fileName = filename;
             savedFile = savedFile + "-" + fileName;
             logger.debug(`uploading ${fileName}`)
-            let written = file.pipe(fs.createWriteStream(savedFile));
-            if (written) {
+            writeStream = file.pipe(fs.createWriteStream(savedFile));
+            if (writeStream) {
                 logger.debug(`${fileName} saved, path: ${savedFile}`)
             }
         });
         busboy.on('finish', function() {
             if (hitLimit) {
-                utils.deleteFile(savedFile);
+                // Already cleaned up in the 'limit' handler above.
                 return;
             }
             logger.debug(`upload complete. file: ${fileName}`)

@@ -225,9 +225,10 @@ FFMPEG API is provided as Docker image for easy consumption.
 * Default log level is _info_. Set log level using environment variable, _LOG_LEVEL_.
 ** Set log level to debug:
 ** `docker run -it --rm -p 3000:3000 -e LOG_LEVEL=debug kazhar/ffmpeg-api`
-* Default maximum file size of uploaded files is 512MB. Use environment variable _FILE_SIZE_LIMIT_BYTES_ to change it:
+* Default maximum file size of uploaded files is 512MB (536870912 bytes). Use environment variable _FILE_SIZE_LIMIT_BYTES_ to change it — this single value governs every endpoint (multipart uploads, and the base64/url sources on `/convert/*`):
 ** Set max file size to 1MB:
 ** `docker run -it --rm -p 3000:3000 -e FILE_SIZE_LIMIT_BYTES=1048576 kazhar/ffmpeg-api`
+** This deployment's `docker-compose.yml` sets it to 1GiB (`FILE_SIZE_LIMIT_BYTES=1073741824`).
 * All uploaded and converted files are deleted when they've been downloaded. Use environment variable _KEEP_ALL_FILES_ to keep all files inside the container /tmp-directory:
 ** `docker run -it --rm -p 3000:3000 -e KEEP_ALL_FILES=true kazhar/ffmpeg-api`
 * When running on Docker/Kubernetes, port binding can be different than default 3000. Use _EXTERNAL_PORT_ to set up external port in returned URLs in extracted images JSON:
